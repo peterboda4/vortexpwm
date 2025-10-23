@@ -420,6 +420,48 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         maxValue: 0.95,
         automationRate: 'a-rate',
       },
+      {
+        name: 'filterEnvAttack',
+        defaultValue: 0.005,
+        minValue: 0.0,
+        maxValue: 2.0,
+        automationRate: 'k-rate',
+      },
+      {
+        name: 'filterEnvDecay',
+        defaultValue: 0.1,
+        minValue: 0.0,
+        maxValue: 2.0,
+        automationRate: 'k-rate',
+      },
+      {
+        name: 'filterEnvSustain',
+        defaultValue: 0.7,
+        minValue: 0.0,
+        maxValue: 1.0,
+        automationRate: 'k-rate',
+      },
+      {
+        name: 'filterEnvRelease',
+        defaultValue: 0.2,
+        minValue: 0.0,
+        maxValue: 3.0,
+        automationRate: 'k-rate',
+      },
+      {
+        name: 'lpEnvAmount',
+        defaultValue: 0.0,
+        minValue: -1.0,
+        maxValue: 1.0,
+        automationRate: 'k-rate',
+      },
+      {
+        name: 'hpEnvAmount',
+        defaultValue: 0.0,
+        minValue: -1.0,
+        maxValue: 1.0,
+        automationRate: 'k-rate',
+      },
     ];
   }
 
@@ -451,10 +493,15 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         osc2Phase: Math.random(),
         sub2Phase: Math.random(),
 
-        // Envelope
+        // Amp Envelope
         env: 0.0,
         envState: 'idle',
         sustainLevel: 0.7,
+
+        // Filter Envelope
+        filterEnv: 0.0,
+        filterEnvState: 'idle',
+        filterSustainLevel: 0.7,
 
         // Filters (LPF + HPF in series)
         lpf: new IIRFilter(),
@@ -519,6 +566,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       voice.velocity = velocity;
       voice.gate = true;
       voice.envState = 'attack';
+      voice.filterEnvState = 'attack';
       return;
     }
 
@@ -531,6 +579,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     voice.gate = true;
     voice.active = true;
     voice.envState = 'attack';
+    voice.filterEnvState = 'attack';
 
     this.noteToVoice.set(midi, voiceIndex);
   }
@@ -541,6 +590,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       const voice = this.voices[voiceIndex];
       voice.gate = false;
       voice.envState = 'release';
+      voice.filterEnvState = 'release';
     }
   }
 
@@ -876,6 +926,16 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       Math.min(20000, hpfCutoffNow + aftertouchMods.hpCutoff * 5000)
     );
 
+    // Apply filter envelope modulation to HPF cutoff
+    const hpEnvAmount = params.hpEnvAmount;
+    if (hpEnvAmount !== 0) {
+      // Scale envelope from 0-1 to -1 to +1 based on amount, then apply exponential scaling
+      const envMod = (voice.filterEnv * 2 - 1) * hpEnvAmount;
+      // Apply exponential scaling: positive values boost frequency, negative values cut
+      const freqMultiplier = Math.pow(2, envMod * 5); // ±5 octaves max
+      hpfCutoffNow = Math.max(20, Math.min(20000, hpfCutoffNow * freqMultiplier));
+    }
+
     let hpfResonanceNow =
       params.hpfResonance.length > 1
         ? params.hpfResonance[sampleIndex]
@@ -895,6 +955,16 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       20,
       Math.min(20000, lpfCutoffNow + aftertouchMods.lpCutoff * 5000)
     );
+
+    // Apply filter envelope modulation to LPF cutoff
+    const lpEnvAmount = params.lpEnvAmount;
+    if (lpEnvAmount !== 0) {
+      // Scale envelope from 0-1 to -1 to +1 based on amount, then apply exponential scaling
+      const envMod = (voice.filterEnv * 2 - 1) * lpEnvAmount;
+      // Apply exponential scaling: positive values boost frequency, negative values cut
+      const freqMultiplier = Math.pow(2, envMod * 5); // ±5 octaves max
+      lpfCutoffNow = Math.max(20, Math.min(20000, lpfCutoffNow * freqMultiplier));
+    }
 
     let lpfResonanceNow =
       params.filterResonance.length > 1
@@ -990,6 +1060,63 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       }
     }
 
+    // Filter ADSR envelope
+    const filterEnvFloor = 0.0001;
+    const filterEnvA = params.filterEnvA;
+    const filterEnvD = params.filterEnvD;
+    const filterEnvS = params.filterEnvS;
+    const filterEnvR = params.filterEnvR;
+
+    // Filter Attack
+    if (voice.filterEnvState === 'attack') {
+      if (filterEnvA <= 0) {
+        voice.filterEnv = 1.0;
+        voice.filterEnvState = 'decay';
+      } else {
+        const attackCoeff = 1.0 - Math.exp(-1.0 / (filterEnvA * sr));
+        voice.filterEnv += (1.0 - voice.filterEnv) * attackCoeff;
+        if (voice.filterEnv >= 0.9999) {
+          voice.filterEnv = 1.0;
+          voice.filterEnvState = 'decay';
+        }
+      }
+    }
+    // Filter Decay
+    if (voice.filterEnvState === 'decay') {
+      voice.filterSustainLevel = Math.max(filterEnvFloor, filterEnvS);
+      if (filterEnvD <= 0) {
+        voice.filterEnv = voice.filterSustainLevel;
+        voice.filterEnvState = voice.gate ? 'sustain' : 'release';
+      } else {
+        const decayCoeff = 1.0 - Math.exp(-1.0 / (filterEnvD * sr));
+        voice.filterEnv += (voice.filterSustainLevel - voice.filterEnv) * decayCoeff;
+        if (Math.abs(voice.filterEnv - voice.filterSustainLevel) < 0.0001) {
+          voice.filterEnv = voice.filterSustainLevel;
+          voice.filterEnvState = voice.gate ? 'sustain' : 'release';
+        }
+      }
+    }
+    // Filter Sustain
+    if (voice.filterEnvState === 'sustain') {
+      voice.filterSustainLevel = Math.max(filterEnvFloor, filterEnvS);
+      voice.filterEnv = voice.filterSustainLevel;
+      if (!voice.gate) voice.filterEnvState = 'release';
+    }
+    // Filter Release
+    if (voice.filterEnvState === 'release') {
+      if (filterEnvR <= 0) {
+        voice.filterEnv = 0.0;
+        voice.filterEnvState = 'idle';
+      } else {
+        const releaseCoeff = 1.0 - Math.exp(-1.0 / (filterEnvR * sr));
+        voice.filterEnv += (filterEnvFloor - voice.filterEnv) * releaseCoeff;
+        if (voice.filterEnv <= filterEnvFloor * 1.5) {
+          voice.filterEnv = 0.0;
+          voice.filterEnvState = 'idle';
+        }
+      }
+    }
+
     // Pan LFO
     let panRateNow =
       params.panRate.length > 1
@@ -1074,6 +1201,12 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       filterResonance: parameters.filterResonance,
       hpfCutoff: parameters.hpfCutoff,
       hpfResonance: parameters.hpfResonance,
+      filterEnvA: parameters.filterEnvAttack[0],
+      filterEnvD: parameters.filterEnvDecay[0],
+      filterEnvS: parameters.filterEnvSustain[0],
+      filterEnvR: parameters.filterEnvRelease[0],
+      lpEnvAmount: parameters.lpEnvAmount[0],
+      hpEnvAmount: parameters.hpEnvAmount[0],
       aftertouchDest1: parameters.aftertouchDest1[0],
       aftertouchAmount1: parameters.aftertouchAmount1[0],
       aftertouchDest2: parameters.aftertouchDest2[0],

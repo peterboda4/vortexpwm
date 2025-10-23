@@ -418,6 +418,88 @@
             <span class="value" id="masterVal">0.400</span>
           </slider-control>
         </fieldset>
+
+        <fieldset>
+          <legend>Filter Env (ADSR)</legend>
+          <slider-control>
+            <span class="label">Attack (ms)</span>
+            <input
+              class="slider"
+              id="filterAttack"
+              type="range"
+              min="0"
+              max="2"
+              step="0.001"
+              value="0.005"
+            />
+            <span class="value" id="filterAttackVal">5</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Decay (ms)</span>
+            <input
+              class="slider"
+              id="filterDecay"
+              type="range"
+              min="0"
+              max="2"
+              step="0.001"
+              value="0.1"
+            />
+            <span class="value" id="filterDecayVal">100</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Sustain (%)</span>
+            <input
+              class="slider"
+              id="filterSustain"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0.7"
+            />
+            <span class="value" id="filterSustainVal">0.700</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Release (ms)</span>
+            <input
+              class="slider"
+              id="filterRelease"
+              type="range"
+              min="0"
+              max="3"
+              step="0.001"
+              value="0.2"
+            />
+            <span class="value" id="filterReleaseVal">200</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">LP Env Amount (%)</span>
+            <input
+              class="slider"
+              id="lpEnvAmount"
+              type="range"
+              min="-100"
+              max="100"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="lpEnvAmountVal">0</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">HP Env Amount (%)</span>
+            <input
+              class="slider"
+              id="hpEnvAmount"
+              type="range"
+              min="-100"
+              max="100"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="hpEnvAmountVal">0</span>
+          </slider-control>
+        </fieldset>
       </section>
 
       <section>

@@ -59,6 +59,12 @@ export class Synth {
         aftertouchAmount4: 0.0,
         filterCutoff: 5000,
         filterResonance: 0.1,
+        filterEnvAttack: 0.005,
+        filterEnvDecay: 0.1,
+        filterEnvSustain: 0.7,
+        filterEnvRelease: 0.2,
+        lpEnvAmount: 0.0,
+        hpEnvAmount: 0.0,
       },
     });
 

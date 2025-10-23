@@ -57,6 +57,26 @@ export function initParameterControls(synth) {
   bind('release', 'envelopeRelease', (v) => Math.round(+v * 1000));
   bind('velocityAmt', 'velocityAmount', (v) => Math.round(+v * 100));
   bind('master', 'masterVolume', (v) => Math.round(+v * 100));
+
+  // Filter envelope controls
+  bind('filterAttack', 'filterEnvAttack', (v) => Math.round(+v * 1000));
+  bind('filterDecay', 'filterEnvDecay', (v) => Math.round(+v * 1000));
+  bind('filterSustain', 'filterEnvSustain', (v) => (+v).toFixed(3));
+  bind('filterRelease', 'filterEnvRelease', (v) => Math.round(+v * 1000));
+  // LP/HP envelope amount: UI is -100 to +100, synth is -1.0 to +1.0
+  const bindEnvAmount = (id, param) => {
+    const el = byId(id);
+    const val = byId(id + 'Val');
+    const apply = (v) => {
+      const percent = Math.round(+v);
+      val.textContent = percent;
+      synth.setParam(param, +v / 100.0); // Convert to -1.0 to +1.0
+    };
+    apply(el.value);
+    el.addEventListener('input', (e) => apply(e.target.value));
+  };
+  bindEnvAmount('lpEnvAmount', 'lpEnvAmount');
+  bindEnvAmount('hpEnvAmount', 'hpEnvAmount');
   // Exponential filter cutoff mapping (20Hz - 20kHz)
   const bindExpFilter = (id, param, fmt, gentle = false) => {
     const el = byId(id);
