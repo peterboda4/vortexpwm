@@ -53,13 +53,25 @@ export class ChorusEffect extends FXBase {
       this.lfoPhases[lfoIndexR] += this.rate / this.sampleRate;
       if (this.lfoPhases[lfoIndexR] >= 1) this.lfoPhases[lfoIndexR] -= 1;
 
-      // Calculate modulated delay time
+      // Calculate modulated delay time with bounds checking
       const modulationRange = this.delay * 0.3 * this.depth; // ±30% of base delay
-      const delayMsL = this.delay + lfoL * modulationRange;
-      const delayMsR = this.delay + lfoR * modulationRange;
+      const delayMsL = Math.max(
+        1,
+        Math.min(this.maxDelay, this.delay + lfoL * modulationRange)
+      );
+      const delayMsR = Math.max(
+        1,
+        Math.min(this.maxDelay, this.delay + lfoR * modulationRange)
+      );
 
-      const delaySamplesL = (delayMsL / 1000) * this.sampleRate;
-      const delaySamplesR = (delayMsR / 1000) * this.sampleRate;
+      const delaySamplesL = Math.min(
+        this.maxDelaySamples - 1,
+        (delayMsL / 1000) * this.sampleRate
+      );
+      const delaySamplesR = Math.min(
+        this.maxDelaySamples - 1,
+        (delayMsR / 1000) * this.sampleRate
+      );
 
       // Read from delay buffer with linear interpolation
       chorusL += this.readDelayBuffer(this.bufferL, delaySamplesL);

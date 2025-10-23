@@ -46,10 +46,16 @@ export class PhaserEffect extends FXBase {
     const currentFreq =
       this.minFreq + (lfoValue * 0.5 + 0.5) * freqRange * this.depth;
 
-    // All-pass coefficient calculation
-    const omega = (2 * Math.PI * currentFreq) / this.sampleRate;
+    // All-pass coefficient calculation with stability bounds
+    const omega = Math.min(
+      (2 * Math.PI * currentFreq) / this.sampleRate,
+      Math.PI * 0.95
+    );
     const tanHalfOmega = Math.tan(omega / 2);
-    const a1 = (tanHalfOmega - 1) / (tanHalfOmega + 1);
+    const a1 = Math.max(
+      -0.99,
+      Math.min(0.99, (tanHalfOmega - 1) / (tanHalfOmega + 1))
+    );
 
     // Process through all-pass stages (left channel)
     let outputL = inputL + this.feedbackL * this.feedback;
@@ -59,7 +65,7 @@ export class PhaserEffect extends FXBase {
       outputL = a1 * input + stage.zm1;
       stage.zm1 = input - a1 * outputL;
     }
-    this.feedbackL = outputL;
+    this.feedbackL = Math.max(-2, Math.min(2, outputL));
 
     // Process through all-pass stages (right channel)
     let outputR = inputR + this.feedbackR * this.feedback;
@@ -69,7 +75,7 @@ export class PhaserEffect extends FXBase {
       outputR = a1 * input + stage.zm1;
       stage.zm1 = input - a1 * outputR;
     }
-    this.feedbackR = outputR;
+    this.feedbackR = Math.max(-2, Math.min(2, outputR));
 
     // Mix dry/wet
     const finalL = inputL * (1 - this.mix) + outputL * this.mix;

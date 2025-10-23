@@ -96,6 +96,14 @@ export class FXController {
   }
 
   setParameter(instanceId, param, value) {
+    // Check if effect still exists to prevent race conditions
+    if (!this.activeEffects.has(instanceId)) {
+      console.warn(
+        `Attempt to set parameter on non-existent effect ${instanceId}`
+      );
+      return;
+    }
+
     this.fxNode.port.postMessage({
       type: 'setParameter',
       instanceId,

@@ -516,10 +516,15 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     if (this.noteToVoice.has(midi)) {
       const voiceIndex = this.noteToVoice.get(midi);
       const voice = this.voices[voiceIndex];
-      voice.velocity = velocity;
-      voice.gate = true;
-      voice.envState = 'attack';
-      return;
+      // Validate voice is still active, clean up orphaned entries
+      if (!voice.active || voice.envState === 'idle') {
+        this.noteToVoice.delete(midi);
+      } else {
+        voice.velocity = velocity;
+        voice.gate = true;
+        voice.envState = 'attack';
+        return;
+      }
     }
 
     // Allocate new voice
@@ -662,10 +667,9 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     }
 
     // Get FM parameters first
-    let fmDepthNow =
-      params.fmDepth.length > 1
-        ? params.fmDepth[sampleIndex]
-        : params.fmDepth[0];
+    let fmDepthNow = params.fmDepthIsAutomated
+      ? params.fmDepth[sampleIndex]
+      : params.fmDepth[0];
     // Apply aftertouch modulation to FM depth and clamp to [0, 1]
     fmDepthNow = Math.max(0, Math.min(1, fmDepthNow + aftertouchMods.fmDepth));
 
@@ -696,14 +700,15 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     );
 
     // Frequency with coarse semitone offset, fine tune (cents), and pitch bend
-    const coarseNow =
-      params.coarse.length > 1 ? params.coarse[sampleIndex] : params.coarse[0];
-    const fineNow =
-      params.fine.length > 1 ? params.fine[sampleIndex] : params.fine[0];
-    const pitchBendNow =
-      params.pitchBend.length > 1
-        ? params.pitchBend[sampleIndex]
-        : params.pitchBend[0];
+    const coarseNow = params.coarseIsAutomated
+      ? params.coarse[sampleIndex]
+      : params.coarse[0];
+    const fineNow = params.fineIsAutomated
+      ? params.fine[sampleIndex]
+      : params.fine[0];
+    const pitchBendNow = params.pitchBendIsAutomated
+      ? params.pitchBend[sampleIndex]
+      : params.pitchBend[0];
     const baseSemi =
       voice.midi +
       coarseNow +
@@ -714,7 +719,10 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
 
     // Apply FM modulation: modulate frequency with Osc2 output
     const fmModulation = osc2Raw * fmDepthNow * baseFreq * 0.5; // Scale modulation amount
-    const modulatedFreq = baseFreq + fmModulation;
+    const modulatedFreq = Math.max(
+      20,
+      Math.min(sr * 0.48, baseFreq + fmModulation)
+    );
 
     // Store previous Osc1 phase for hard sync detection
     const prevOsc1Phase = voice.phase;
@@ -739,30 +747,27 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     if (voice.subPhase >= 1) voice.subPhase -= 1;
 
     // PWM LFO
-    let pwmRateNow =
-      params.pwmRate.length > 1
-        ? params.pwmRate[sampleIndex]
-        : params.pwmRate[0];
+    let pwmRateNow = params.pwmRateIsAutomated
+      ? params.pwmRate[sampleIndex]
+      : params.pwmRate[0];
     // Apply aftertouch modulation to PWM rate and clamp to [0.1, 10]
     pwmRateNow = Math.max(
       0.1,
       Math.min(10, pwmRateNow + aftertouchMods.pwmRate * 5)
     );
 
-    let pulseWidthNow =
-      params.pulseWidth.length > 1
-        ? params.pulseWidth[sampleIndex]
-        : params.pulseWidth[0];
+    let pulseWidthNow = params.pulseWidthIsAutomated
+      ? params.pulseWidth[sampleIndex]
+      : params.pulseWidth[0];
     // Apply aftertouch modulation to pulse width and clamp to [0.01, 0.99]
     pulseWidthNow = Math.max(
       0.01,
       Math.min(0.99, pulseWidthNow + aftertouchMods.osc1PW * 0.4)
     );
 
-    const pwmDepthNow =
-      params.pwmDepth.length > 1
-        ? params.pwmDepth[sampleIndex]
-        : params.pwmDepth[0];
+    const pwmDepthNow = params.pwmDepthIsAutomated
+      ? params.pwmDepth[sampleIndex]
+      : params.pwmDepth[0];
 
     voice.pwmLfoPhase += pwmRateNow / sr;
     if (voice.pwmLfoPhase >= 1) voice.pwmLfoPhase -= 1;
@@ -779,8 +784,9 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     osc1Raw += this.polyBLEP((voice.phase - duty + 1.0) % 1.0, phInc);
 
     // Sub oscillator
-    let subVolNow =
-      params.subVol.length > 1 ? params.subVol[sampleIndex] : params.subVol[0];
+    let subVolNow = params.subVolIsAutomated
+      ? params.subVol[sampleIndex]
+      : params.subVol[0];
     // Apply aftertouch modulation to sub volume and clamp to [0, 1]
     subVolNow = Math.max(0, Math.min(1, subVolNow + aftertouchMods.sub1Volume));
     let subOsc = 0.0;
@@ -792,17 +798,17 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     }
 
     // Apply main oscillator volume and mix with sub oscillator
-    let oscVolNow =
-      params.oscVol.length > 1 ? params.oscVol[sampleIndex] : params.oscVol[0];
+    let oscVolNow = params.oscVolIsAutomated
+      ? params.oscVol[sampleIndex]
+      : params.oscVol[0];
     // Apply aftertouch modulation to oscillator volume and clamp to [0, 1]
     oscVolNow = Math.max(0, Math.min(1, oscVolNow + aftertouchMods.osc1Volume));
     let osc1Output = osc1Raw * oscVolNow + subOsc;
 
     // Apply Osc2 volume (osc2Raw already calculated above for FM)
-    let osc2VolNow =
-      params.osc2Vol.length > 1
-        ? params.osc2Vol[sampleIndex]
-        : params.osc2Vol[0];
+    let osc2VolNow = params.osc2VolIsAutomated
+      ? params.osc2Vol[sampleIndex]
+      : params.osc2Vol[0];
     // Apply aftertouch modulation to osc2 volume and clamp to [0, 1]
     osc2VolNow = Math.max(
       0,
@@ -814,10 +820,9 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     }
 
     // Get sub2 volume parameter
-    let sub2VolNow =
-      params.sub2Vol.length > 1
-        ? params.sub2Vol[sampleIndex]
-        : params.sub2Vol[0];
+    let sub2VolNow = params.sub2VolIsAutomated
+      ? params.sub2Vol[sampleIndex]
+      : params.sub2Vol[0];
     // Apply aftertouch modulation to sub2 volume and clamp to [0, 1]
     sub2VolNow = Math.max(
       0,
@@ -837,10 +842,9 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     }
 
     // Ring Modulator (multiply raw Osc1 and Osc2 signals)
-    let ringVolNow =
-      params.ringVol.length > 1
-        ? params.ringVol[sampleIndex]
-        : params.ringVol[0];
+    let ringVolNow = params.ringVolIsAutomated
+      ? params.ringVol[sampleIndex]
+      : params.ringVol[0];
     // Apply aftertouch modulation to ring volume and clamp to [0, 1]
     ringVolNow = Math.max(
       0,
@@ -855,10 +859,9 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     let y = osc1Output + osc2Output + sub2Output + ringOutput;
 
     // Add noise (global monophonic noise with volume control)
-    let noiseVolNow =
-      params.noiseVol.length > 1
-        ? params.noiseVol[sampleIndex]
-        : params.noiseVol[0];
+    let noiseVolNow = params.noiseVolIsAutomated
+      ? params.noiseVol[sampleIndex]
+      : params.noiseVol[0];
     if (noiseVolNow > 0) {
       const noiseSignal = this.generateNoise();
       // Add noise to oscillator mix
@@ -866,40 +869,36 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     }
 
     // Apply filters (HPF -> LPF in series)
-    let hpfCutoffNow =
-      params.hpfCutoff.length > 1
-        ? params.hpfCutoff[sampleIndex]
-        : params.hpfCutoff[0];
+    let hpfCutoffNow = params.hpfCutoffIsAutomated
+      ? params.hpfCutoff[sampleIndex]
+      : params.hpfCutoff[0];
     // Apply aftertouch modulation to HPF cutoff and clamp to [20, 20000]
     hpfCutoffNow = Math.max(
       20,
       Math.min(20000, hpfCutoffNow + aftertouchMods.hpCutoff * 5000)
     );
 
-    let hpfResonanceNow =
-      params.hpfResonance.length > 1
-        ? params.hpfResonance[sampleIndex]
-        : params.hpfResonance[0];
+    let hpfResonanceNow = params.hpfResonanceIsAutomated
+      ? params.hpfResonance[sampleIndex]
+      : params.hpfResonance[0];
     // Apply aftertouch modulation to HPF resonance and clamp to [0, 0.95]
     hpfResonanceNow = Math.max(
       0,
       Math.min(0.95, hpfResonanceNow + aftertouchMods.hpResonance * 0.5)
     );
 
-    let lpfCutoffNow =
-      params.filterCutoff.length > 1
-        ? params.filterCutoff[sampleIndex]
-        : params.filterCutoff[0];
+    let lpfCutoffNow = params.filterCutoffIsAutomated
+      ? params.filterCutoff[sampleIndex]
+      : params.filterCutoff[0];
     // Apply aftertouch modulation to LPF cutoff and clamp to [20, 20000]
     lpfCutoffNow = Math.max(
       20,
       Math.min(20000, lpfCutoffNow + aftertouchMods.lpCutoff * 5000)
     );
 
-    let lpfResonanceNow =
-      params.filterResonance.length > 1
-        ? params.filterResonance[sampleIndex]
-        : params.filterResonance[0];
+    let lpfResonanceNow = params.filterResonanceIsAutomated
+      ? params.filterResonance[sampleIndex]
+      : params.filterResonance[0];
     // Apply aftertouch modulation to LPF resonance and clamp to [0, 0.95]
     lpfResonanceNow = Math.max(
       0,
@@ -958,6 +957,10 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
           voice.envState = voice.gate ? 'sustain' : 'release';
         }
       }
+      // Explicit gate check to prevent stuck voices in decay
+      if (!voice.gate && voice.envState !== 'release') {
+        voice.envState = 'release';
+      }
     }
     // Sustain
     if (voice.envState === 'sustain') {
@@ -989,29 +992,34 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         }
       }
     }
+    // Idle transition cleanup - ensure noteToVoice cleanup even if not from release
+    if (voice.envState === 'idle' && voice.midi >= 0) {
+      this.noteToVoice.delete(voice.midi);
+      voice.midi = -1;
+      voice.active = false;
+    }
 
     // Pan LFO
-    let panRateNow =
-      params.panRate.length > 1
-        ? params.panRate[sampleIndex]
-        : params.panRate[0];
+    let panRateNow = params.panRateIsAutomated
+      ? params.panRate[sampleIndex]
+      : params.panRate[0];
     // Apply aftertouch modulation to pan rate and clamp to [0.1, 10]
     panRateNow = Math.max(
       0.1,
       Math.min(10, panRateNow + aftertouchMods.panRate * 5)
     );
 
-    let panDepthNow =
-      params.panDepth.length > 1
-        ? params.panDepth[sampleIndex]
-        : params.panDepth[0];
+    let panDepthNow = params.panDepthIsAutomated
+      ? params.panDepth[sampleIndex]
+      : params.panDepth[0];
     // Apply aftertouch modulation to pan depth and clamp to [0, 1]
     panDepthNow = Math.max(
       0,
       Math.min(1, panDepthNow + aftertouchMods.panDepth)
     );
-    const panPosNow =
-      params.panPos.length > 1 ? params.panPos[sampleIndex] : params.panPos[0];
+    const panPosNow = params.panPosIsAutomated
+      ? params.panPos[sampleIndex]
+      : params.panPos[0];
     voice.panLfoPhase += panRateNow / sr;
     if (voice.panLfoPhase >= 1) voice.panLfoPhase -= 1;
     const panMod = Math.sin(twoPi * voice.panLfoPhase) * panDepthNow;
@@ -1022,8 +1030,9 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     const lg = Math.sqrt(0.5 * (1 - pan));
     const rg = Math.sqrt(0.5 * (1 + pan));
 
-    const masterNow =
-      params.master.length > 1 ? params.master[sampleIndex] : params.master[0];
+    const masterNow = params.masterIsAutomated
+      ? params.master[sampleIndex]
+      : params.master[0];
     // Mix between fixed velocity (1.0) and actual velocity based on velocityAmt
     const effectiveVelocity =
       1.0 - params.velocityAmt + voice.velocity * params.velocityAmt;
@@ -1042,38 +1051,59 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
 
     if (!L || !R) return true;
 
-    // Cache parameters
+    // Cache parameters with pre-computed automation flags for hot loop optimization
     const params = {
       coarse: parameters.oscillatorCoarseTune,
+      coarseIsAutomated: parameters.oscillatorCoarseTune.length > 1,
       fine: parameters.oscillatorFineTune,
+      fineIsAutomated: parameters.oscillatorFineTune.length > 1,
       pitchBend: parameters.pitchBend,
+      pitchBendIsAutomated: parameters.pitchBend.length > 1,
       oscVol: parameters.oscillatorVolume,
+      oscVolIsAutomated: parameters.oscillatorVolume.length > 1,
       pulseWidth: parameters.pulseWidth,
+      pulseWidthIsAutomated: parameters.pulseWidth.length > 1,
       pwmDepth: parameters.pulseWidthModulationDepth,
+      pwmDepthIsAutomated: parameters.pulseWidthModulationDepth.length > 1,
       pwmRate: parameters.pulseWidthModulationRate,
+      pwmRateIsAutomated: parameters.pulseWidthModulationRate.length > 1,
       panPos: parameters.panningPosition,
+      panPosIsAutomated: parameters.panningPosition.length > 1,
       panDepth: parameters.panningModulationDepth,
+      panDepthIsAutomated: parameters.panningModulationDepth.length > 1,
       panRate: parameters.panningModulationRate,
+      panRateIsAutomated: parameters.panningModulationRate.length > 1,
       envA: parameters.envelopeAttack[0],
       envD: parameters.envelopeDecay[0],
       envS: parameters.envelopeSustain[0],
       envR: parameters.envelopeRelease[0],
       subVol: parameters.subOscillatorVolume,
+      subVolIsAutomated: parameters.subOscillatorVolume.length > 1,
       fmDepth: parameters.frequencyModulationDepth,
+      fmDepthIsAutomated: parameters.frequencyModulationDepth.length > 1,
       osc2Waveform: parameters.oscillator2Waveform[0],
       osc2Coarse: parameters.oscillator2CoarseTune[0],
       osc2Fine: parameters.oscillator2FineTune[0],
       osc2Vol: parameters.oscillator2Volume,
+      osc2VolIsAutomated: parameters.oscillator2Volume.length > 1,
       sub2Vol: parameters.subOscillator2Volume,
+      sub2VolIsAutomated: parameters.subOscillator2Volume.length > 1,
       hardSync: parameters.oscillator2HardSync[0],
       ringVol: parameters.ringModulatorVolume,
+      ringVolIsAutomated: parameters.ringModulatorVolume.length > 1,
       noiseVol: parameters.noiseVolume,
+      noiseVolIsAutomated: parameters.noiseVolume.length > 1,
       master: parameters.masterVolume,
+      masterIsAutomated: parameters.masterVolume.length > 1,
       velocityAmt: parameters.velocityAmount[0],
       filterCutoff: parameters.filterCutoff,
+      filterCutoffIsAutomated: parameters.filterCutoff.length > 1,
       filterResonance: parameters.filterResonance,
+      filterResonanceIsAutomated: parameters.filterResonance.length > 1,
       hpfCutoff: parameters.hpfCutoff,
+      hpfCutoffIsAutomated: parameters.hpfCutoff.length > 1,
       hpfResonance: parameters.hpfResonance,
+      hpfResonanceIsAutomated: parameters.hpfResonance.length > 1,
       aftertouchDest1: parameters.aftertouchDest1[0],
       aftertouchAmount1: parameters.aftertouchAmount1[0],
       aftertouchDest2: parameters.aftertouchDest2[0],
@@ -1088,6 +1118,18 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < L.length; i++) {
       L[i] = 0;
       R[i] = 0;
+    }
+
+    // Periodic cleanup of orphaned noteToVoice entries (every ~23ms at 44.1kHz)
+    this.cleanupCounter = (this.cleanupCounter || 0) + 1;
+    if (this.cleanupCounter >= 1024) {
+      this.cleanupCounter = 0;
+      for (const [midi, voiceIndex] of this.noteToVoice.entries()) {
+        const voice = this.voices[voiceIndex];
+        if (!voice.active || voice.envState === 'idle' || voice.midi !== midi) {
+          this.noteToVoice.delete(midi);
+        }
+      }
     }
 
     // Process each voice and mix
