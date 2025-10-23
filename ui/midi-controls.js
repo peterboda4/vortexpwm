@@ -30,7 +30,7 @@ export function initMIDIUI(midiInput) {
     let label = 'Lin';
     if (v < -10) label = 'Log';
     else if (v > 10) label = 'Exp';
-    velocityCurveVal.textContent = `${label} (${v})`;
+    velocityCurveVal.textContent = `${label} ${v}`;
     midiInput.setVelocityCurve(v);
   };
   updateVelocityCurve(velocityCurveEl.value);
