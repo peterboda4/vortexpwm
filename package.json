@@ -1,0 +1,15 @@
+{
+  "name": "min-pwm-synth",
+  "version": "1.0.0",
+  "description": "Minimal PWM Synthesizer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2"
+  }
+}

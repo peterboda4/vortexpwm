@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Minimal PWM Mono Synth (AudioWorklet)</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230e0f12' width='100' height='100'/><path d='M10 50 L30 20 L50 80 L70 35 L90 65' stroke='%236ea8fe' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="split">
+      <h1>PWM Synth (AudioWorklet)</h1>
+      <div class="bar">
+        <button id="start">Start Audio</button>
+        <span class="pill small">Stereo • 8-Voice Polyphonic</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="row">
+        <fieldset>
+          <legend>Oscillator (PWM)</legend>
+          <slider-control>
+            <span class="label">Coarse (st)</span>
+            <input
+              class="slider"
+              id="coarse"
+              type="range"
+              min="-48"
+              max="48"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="coarseVal">0</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Fine (cents)</span>
+            <input
+              class="slider"
+              id="fine"
+              type="range"
+              min="-50"
+              max="50"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="fineVal">0</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">PW (%)</span>
+            <input
+              class="slider"
+              id="pulseWidth"
+              type="range"
+              min="0.01"
+              max="0.99"
+              step="0.01"
+              value="0.5"
+            />
+            <span class="value" id="pulseWidthVal">50</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">PW Depth (%)</span>
+            <input
+              class="slider"
+              id="pwmDepth"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0.5"
+            />
+            <span class="value" id="pwmDepthVal">50</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">PW Rate (Hz)</span>
+            <input
+              class="slider"
+              id="pwmRate"
+              type="range"
+              min="0.1"
+              max="10"
+              step="0.01"
+              value="2"
+            />
+            <span class="value" id="pwmRateVal">2.00</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Osc1 Vol. (%)</span>
+            <input
+              class="slider"
+              id="oscVolume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="1"
+            />
+            <span class="value" id="oscVolumeVal">100</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Sub1 Vol. (%)</span>
+            <input
+              class="slider"
+              id="subVolume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="subVolumeVal">0</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">FM Depth (%)</span>
+            <input
+              class="slider"
+              id="fmDepth"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="fmDepthVal">0</span>
+          </slider-control>
+        </fieldset>
+
+        <fieldset>
+          <legend>Oscillator 2</legend>
+          <slider-control>
+            <span class="label">Waveform</span>
+            <select class="slider" id="osc2Waveform">
+              <option value="0">Saw</option>
+              <option value="1">Triangle</option>
+              <option value="2">Sine</option>
+              <option value="3">Square</option>
+            </select>
+            <span class="value" id="osc2WaveformVal">Saw</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Coarse (st)</span>
+            <input
+              class="slider"
+              id="osc2Coarse"
+              type="range"
+              min="-48"
+              max="48"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="osc2CoarseVal">0</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Fine (cents)</span>
+            <input
+              class="slider"
+              id="osc2Fine"
+              type="range"
+              min="-50"
+              max="50"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="osc2FineVal">0</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Osc2 Vol. (%)</span>
+            <input
+              class="slider"
+              id="osc2Volume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="osc2VolumeVal">0</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Sub2 Vol. (%)</span>
+            <input
+              class="slider"
+              id="sub2Volume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="sub2VolumeVal">0</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Hard Sync</span>
+            <input
+              class="slider"
+              id="hardSync"
+              type="range"
+              min="0"
+              max="1"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="hardSyncVal">Off</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Ring Vol. (%)</span>
+            <input
+              class="slider"
+              id="ringVolume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="ringVolumeVal">0</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Noise Vol. (%)</span>
+            <input
+              class="slider"
+              id="noiseVolume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="noiseVolumeVal">0</span>
+          </slider-control>
+        </fieldset>
+
+        <fieldset>
+          <legend>Auto Pan</legend>
+          <slider-control>
+            <span class="label">Pan Position</span>
+            <input
+              class="slider"
+              id="panPos"
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value="0"
+            />
+            <span class="value" id="panPosVal">C</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Pan Depth (%)</span>
+            <input
+              class="slider"
+              id="panDepth"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="panDepthVal">0</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Pan Rate (Hz)</span>
+            <input
+              class="slider"
+              id="panRate"
+              type="range"
+              min="0.1"
+              max="10"
+              step="0.01"
+              value="0.5"
+            />
+            <span class="value" id="panRateVal">0.50</span>
+          </slider-control>
+        </fieldset>
+
+        <fieldset>
+          <legend>Lowpass Filter (24dB IIR)</legend>
+          <slider-control>
+            <span class="label">Cutoff (Hz)</span>
+            <input
+              class="slider"
+              id="filterCutoff"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0.25"
+            />
+            <span class="value" id="filterCutoffVal">5000</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Resonance (%)</span>
+            <input
+              class="slider"
+              id="filterResonance"
+              type="range"
+              min="0"
+              max="0.95"
+              step="0.01"
+              value="0.1"
+            />
+            <span class="value" id="filterResonanceVal">10</span>
+          </slider-control>
+        </fieldset>
+
+        <fieldset>
+          <legend>Highpass Filter (18dB IIR)</legend>
+          <slider-control>
+            <span class="label">Cutoff (Hz)</span>
+            <input
+              class="slider"
+              id="hpfCutoff"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="hpfCutoffVal">20</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Resonance (%)</span>
+            <input
+              class="slider"
+              id="hpfResonance"
+              type="range"
+              min="0"
+              max="0.95"
+              step="0.01"
+              value="0.1"
+            />
+            <span class="value" id="hpfResonanceVal">10</span>
+          </slider-control>
+        </fieldset>
+
+        <fieldset>
+          <legend>Amplifier (ADSR + Master)</legend>
+          <slider-control>
+            <span class="label">Attack (ms)</span>
+            <input
+              class="slider"
+              id="attack"
+              type="range"
+              min="0"
+              max="2"
+              step="0.001"
+              value="0.005"
+            />
+            <span class="value" id="attackVal">5</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Decay (ms)</span>
+            <input
+              class="slider"
+              id="decay"
+              type="range"
+              min="0"
+              max="2"
+              step="0.001"
+              value="0.1"
+            />
+            <span class="value" id="decayVal">100</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Sustain (%)</span>
+            <input
+              class="slider"
+              id="sustain"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0.7"
+            />
+            <span class="value" id="sustainVal">0.700</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Release (ms)</span>
+            <input
+              class="slider"
+              id="release"
+              type="range"
+              min="0"
+              max="3"
+              step="0.001"
+              value="0.2"
+            />
+            <span class="value" id="releaseVal">200</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Vel. Amt. (%)</span>
+            <input
+              class="slider"
+              id="velocityAmt"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.5"
+            />
+            <span class="value" id="velocityAmtVal">50</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Master Vol. (%)</span>
+            <input
+              class="slider"
+              id="master"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0.4"
+            />
+            <span class="value" id="masterVal">0.400</span>
+          </slider-control>
+        </fieldset>
+      </section>
+
+      <section>
+        <fieldset>
+          <legend>MIDI Input</legend>
+          <div id="midiStatus" class="small mb-8">
+            Checking for MIDI devices...
+          </div>
+          <div id="midiDevices"></div>
+          <slider-control>
+            <span class="label">Pitch Bend (st)</span>
+            <input
+              class="slider"
+              id="pitchBendRange"
+              type="range"
+              min="0"
+              max="24"
+              step="1"
+              value="2"
+            />
+            <span class="value" id="pitchBendRangeVal">±2</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Velocity Curve</span>
+            <input
+              class="slider"
+              id="velocityCurve"
+              type="range"
+              min="-100"
+              max="100"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="velocityCurveVal">Lin</span>
+          </slider-control>
+          <div id="midiActivity" class="small mt-8 tabular-nums">
+            Last note: -
+          </div>
+        </fieldset>
+      </section>
+
+      <section>
+        <fieldset>
+          <legend>Aftertouch Modulation</legend>
+          <!-- Slot 1 -->
+          <slider-control>
+            <span class="label">Slot 1 Dest</span>
+            <input
+              class="slider"
+              id="atDest1"
+              type="range"
+              min="0"
+              max="17"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="atDest1Val">None</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Slot 1 Amount</span>
+            <input
+              class="slider"
+              id="atAmount1"
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value="0"
+            />
+            <span class="value" id="atAmount1Val">0.00</span>
+          </slider-control>
+
+          <!-- Slot 2 -->
+          <slider-control>
+            <span class="label">Slot 2 Dest</span>
+            <input
+              class="slider"
+              id="atDest2"
+              type="range"
+              min="0"
+              max="17"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="atDest2Val">None</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Slot 2 Amount</span>
+            <input
+              class="slider"
+              id="atAmount2"
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value="0"
+            />
+            <span class="value" id="atAmount2Val">0.00</span>
+          </slider-control>
+
+          <!-- Slot 3 -->
+          <slider-control>
+            <span class="label">Slot 3 Dest</span>
+            <input
+              class="slider"
+              id="atDest3"
+              type="range"
+              min="0"
+              max="17"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="atDest3Val">None</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Slot 3 Amount</span>
+            <input
+              class="slider"
+              id="atAmount3"
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value="0"
+            />
+            <span class="value" id="atAmount3Val">0.00</span>
+          </slider-control>
+
+          <!-- Slot 4 -->
+          <slider-control>
+            <span class="label">Slot 4 Dest</span>
+            <input
+              class="slider"
+              id="atDest4"
+              type="range"
+              min="0"
+              max="17"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="atDest4Val">None</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Slot 4 Amount</span>
+            <input
+              class="slider"
+              id="atAmount4"
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value="0"
+            />
+            <span class="value" id="atAmount4Val">0.00</span>
+          </slider-control>
+        </fieldset>
+      </section>
+
+      <section>
+        <fieldset>
+          <legend>Keyboard (2 octaves)</legend>
+          <slider-control>
+            <span class="label">Velocity</span>
+            <input
+              class="slider"
+              id="velocity"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.9"
+            />
+            <span class="value" id="velocityVal">0.90</span>
+          </slider-control>
+          <div id="kbd"></div>
+        </fieldset>
+      </section>
+
+      <section>
+        <fieldset>
+          <legend>FX Chain (Drag & Drop)</legend>
+          <div class="fx-section">
+            <div class="fx-library-container">
+              <h3>Available Effects</h3>
+              <div id="fx-library" class="fx-library"></div>
+            </div>
+            <div class="fx-chain-container">
+              <h3>Active Chain (drag to reorder)</h3>
+              <div id="fx-chain" class="fx-chain"></div>
+              <div class="fx-empty-state small">
+                Drag effects from the left to add them to the chain
+              </div>
+            </div>
+          </div>
+        </fieldset>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

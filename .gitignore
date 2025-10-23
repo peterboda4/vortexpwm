@@ -1,0 +1,42 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Claude AI
+.claude
+
+# VS Code
+.vscode/
+
+# Prettier
+.prettierrc
+.prettierignore
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+
+# doc
+/doc
