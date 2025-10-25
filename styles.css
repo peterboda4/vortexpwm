@@ -412,6 +412,12 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
+.two-column {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .fx-section {

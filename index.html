@@ -22,7 +22,7 @@
     <main>
       <section class="row">
         <fieldset>
-          <legend>Oscillator (PWM)</legend>
+          <legend>Oscillator 1 (PWM)</legend>
           <slider-control>
             <span class="label">Coarse (st)</span>
             <input
@@ -422,39 +422,19 @@
 
       <section>
         <fieldset>
-          <legend>MIDI Input</legend>
-          <div id="midiStatus" class="small mb-8">
-            Checking for MIDI devices...
-          </div>
-          <div id="midiDevices"></div>
-          <slider-control>
-            <span class="label">Pitch Bend (st)</span>
-            <input
-              class="slider"
-              id="pitchBendRange"
-              type="range"
-              min="0"
-              max="24"
-              step="1"
-              value="2"
-            />
-            <span class="value" id="pitchBendRangeVal">±2</span>
-          </slider-control>
-          <slider-control>
-            <span class="label">Velocity Curve</span>
-            <input
-              class="slider"
-              id="velocityCurve"
-              type="range"
-              min="-100"
-              max="100"
-              step="1"
-              value="0"
-            />
-            <span class="value" id="velocityCurveVal">Lin</span>
-          </slider-control>
-          <div id="midiActivity" class="small mt-8 tabular-nums">
-            Last note: -
+          <legend>FX Chain (Drag & Drop)</legend>
+          <div class="fx-section">
+            <div class="fx-library-container">
+              <h3>Available Effects</h3>
+              <div id="fx-library" class="fx-library"></div>
+            </div>
+            <div class="fx-chain-container">
+              <h3>Active Chain (drag to reorder)</h3>
+              <div id="fx-chain" class="fx-chain"></div>
+              <div class="fx-empty-state small">
+                Drag effects from the left to add them to the chain
+              </div>
+            </div>
           </div>
         </fieldset>
       </section>
@@ -577,6 +557,49 @@
       </section>
 
       <section>
+        <fieldset class="two-column">
+          <legend>MIDI Input</legend>
+          <div id="xx">
+            <div id="midiStatus" class="small mb-8">
+              Checking for MIDI devices...
+            </div>
+            <div id="midiDevices"></div>
+            <div id="midiActivity" class="small mt-8 tabular-nums">
+              Last note: -
+            </div>
+          </div>
+          <div id="xx">
+            <slider-control>
+              <span class="label">Pitch Bend (st)</span>
+              <input
+                class="slider"
+                id="pitchBendRange"
+                type="range"
+                min="0"
+                max="24"
+                step="1"
+                value="2"
+              />
+              <span class="value" id="pitchBendRangeVal">±2</span>
+            </slider-control>
+            <slider-control>
+              <span class="label">Velocity Curve</span>
+              <input
+                class="slider"
+                id="velocityCurve"
+                type="range"
+                min="-100"
+                max="100"
+                step="1"
+                value="0"
+              />
+              <span class="value" id="velocityCurveVal">Lin</span>
+            </slider-control>
+          </div>
+        </fieldset>
+      </section>
+
+      <section>
         <fieldset>
           <legend>Keyboard (2 octaves)</legend>
           <slider-control>
@@ -593,25 +616,6 @@
             <span class="value" id="velocityVal">0.90</span>
           </slider-control>
           <div id="kbd"></div>
-        </fieldset>
-      </section>
-
-      <section>
-        <fieldset>
-          <legend>FX Chain (Drag & Drop)</legend>
-          <div class="fx-section">
-            <div class="fx-library-container">
-              <h3>Available Effects</h3>
-              <div id="fx-library" class="fx-library"></div>
-            </div>
-            <div class="fx-chain-container">
-              <h3>Active Chain (drag to reorder)</h3>
-              <div id="fx-chain" class="fx-chain"></div>
-              <div class="fx-empty-state small">
-                Drag effects from the left to add them to the chain
-              </div>
-            </div>
-          </div>
         </fieldset>
       </section>
     </main>
