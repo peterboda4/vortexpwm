@@ -24,6 +24,7 @@ export class FXController {
     const { TremoloEffect } = await import('./effects/tremolo.js');
     const { AutoWahEffect } = await import('./effects/autowah.js');
     const { FreqShifterEffect } = await import('./effects/freqshifter.js');
+    const { PitchShifterEffect } = await import('./effects/pitchshifter.js');
 
     this.effectsMetadata.set('hardclip', HardClipEffect.getMetadata());
     this.effectsMetadata.set('phaser', PhaserEffect.getMetadata());
@@ -35,6 +36,7 @@ export class FXController {
     this.effectsMetadata.set('tremolo', TremoloEffect.getMetadata());
     this.effectsMetadata.set('autowah', AutoWahEffect.getMetadata());
     this.effectsMetadata.set('freqshifter', FreqShifterEffect.getMetadata());
+    this.effectsMetadata.set('pitchshifter', PitchShifterEffect.getMetadata());
 
     this.metadataLoaded = true;
   }

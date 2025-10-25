@@ -45,12 +45,14 @@
 ## Usage
 
 ### Development Mode
+
 1. Open `index.html` in browser (requires HTTPS or localhost)
 2. Click "Start Audio" to enable audio
 3. Play notes via MIDI or on-screen keyboard
 4. Adjust parameters with sliders
 
 ### Production Build
+
 Create a single-file monolithic HTML distribution:
 
 ```bash
@@ -58,6 +60,7 @@ npm run build
 ```
 
 This generates `dist/index.html` - a standalone file with:
+
 - Inline CSS
 - All JavaScript modules as data URLs (base64)
 - AudioWorklet processors as Blob URLs

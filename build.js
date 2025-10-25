@@ -126,6 +126,7 @@ function patchModuleFromCode(filePath, code, moduleMap, options = {}) {
     this.effectsMetadata.set('tremolo', window.TremoloEffect.getMetadata());
     this.effectsMetadata.set('autowah', window.AutoWahEffect.getMetadata());
     this.effectsMetadata.set('freqshifter', window.FreqShifterEffect.getMetadata());
+    this.effectsMetadata.set('pitchshifter', window.PitchShifterEffect.getMetadata());
 
     this.metadataLoaded = true;
   }`
@@ -158,6 +159,7 @@ const modulePaths = [
   'fx/effects/tremolo.js',
   'fx/effects/autowah.js',
   'fx/effects/freqshifter.js',
+  'fx/effects/pitchshifter.js',
 ];
 
 // Build process: three-pass patching to handle nested imports
@@ -214,7 +216,9 @@ while (iteration < maxIterations) {
   debugLog(`[pass3] iteration ${iteration} completed with changes`);
 }
 if (iteration === maxIterations && DEBUG) {
-  console.warn('[build] Warning: pass3 reached max iterations without convergence');
+  console.warn(
+    '[build] Warning: pass3 reached max iterations without convergence'
+  );
 }
 
 if (DEBUG) {
@@ -271,8 +275,9 @@ Promise.all([
   import('${moduleMap.get(path.join(__dirname, 'fx/effects/flanger.js'))}'),
   import('${moduleMap.get(path.join(__dirname, 'fx/effects/tremolo.js'))}'),
   import('${moduleMap.get(path.join(__dirname, 'fx/effects/autowah.js'))}'),
-  import('${moduleMap.get(path.join(__dirname, 'fx/effects/freqshifter.js'))}')
-]).then(([hardclip, phaser, bitcrusher, chorus, delay, reverb, flanger, tremolo, autowah, freqshifter]) => {
+  import('${moduleMap.get(path.join(__dirname, 'fx/effects/freqshifter.js'))}'),
+  import('${moduleMap.get(path.join(__dirname, 'fx/effects/pitchshifter.js'))}')
+]).then(([hardclip, phaser, bitcrusher, chorus, delay, reverb, flanger, tremolo, autowah, freqshifter, pitchshifter]) => {
   // Make effect classes globally available
   window.HardClipEffect = hardclip.HardClipEffect;
   window.PhaserEffect = phaser.PhaserEffect;
@@ -284,6 +289,7 @@ Promise.all([
   window.TremoloEffect = tremolo.TremoloEffect;
   window.AutoWahEffect = autowah.AutoWahEffect;
   window.FreqShifterEffect = freqshifter.FreqShifterEffect;
+  window.PitchShifterEffect = pitchshifter.PitchShifterEffect;
 
   // Now load main module
   import('${mainJsDataUrl}');
@@ -322,5 +328,5 @@ console.log('📝 Single-file monolithic distribution with:');
 console.log('   • Inline CSS');
 console.log('   • ES modules as data URLs (base64)');
 console.log('   • AudioWorklet processors as Blob URLs');
-console.log('   • 10 audio effects included');
+console.log('   • 11 audio effects included');
 console.log('   • Full MIDI, keyboard, and FX chain support');
