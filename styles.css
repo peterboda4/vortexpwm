@@ -54,7 +54,7 @@ main {
 .row {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
 }
 
 fieldset {
@@ -415,6 +415,12 @@ select {
 .two-column {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.three-column {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
