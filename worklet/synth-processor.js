@@ -933,7 +933,10 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       const envMod = (voice.filterEnv * 2 - 1) * hpEnvAmount;
       // Apply exponential scaling: positive values boost frequency, negative values cut
       const freqMultiplier = Math.pow(2, envMod * 5); // ±5 octaves max
-      hpfCutoffNow = Math.max(20, Math.min(20000, hpfCutoffNow * freqMultiplier));
+      hpfCutoffNow = Math.max(
+        20,
+        Math.min(20000, hpfCutoffNow * freqMultiplier)
+      );
     }
 
     let hpfResonanceNow =
@@ -963,7 +966,10 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       const envMod = (voice.filterEnv * 2 - 1) * lpEnvAmount;
       // Apply exponential scaling: positive values boost frequency, negative values cut
       const freqMultiplier = Math.pow(2, envMod * 5); // ±5 octaves max
-      lpfCutoffNow = Math.max(20, Math.min(20000, lpfCutoffNow * freqMultiplier));
+      lpfCutoffNow = Math.max(
+        20,
+        Math.min(20000, lpfCutoffNow * freqMultiplier)
+      );
     }
 
     let lpfResonanceNow =
@@ -1089,7 +1095,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         voice.filterEnvState = voice.gate ? 'sustain' : 'release';
       } else {
         const decayCoeff = 1.0 - Math.exp(-1.0 / (filterEnvD * sr));
-        voice.filterEnv += (voice.filterSustainLevel - voice.filterEnv) * decayCoeff;
+        voice.filterEnv +=
+          (voice.filterSustainLevel - voice.filterEnv) * decayCoeff;
         if (Math.abs(voice.filterEnv - voice.filterSustainLevel) < 0.0001) {
           voice.filterEnv = voice.filterSustainLevel;
           voice.filterEnvState = voice.gate ? 'sustain' : 'release';

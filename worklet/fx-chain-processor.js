@@ -877,6 +877,137 @@ class AutoWahEffect extends FXBase {
 }
 
 // ============================================================================
+// PITCH SHIFTER EFFECT
+// ============================================================================
+
+class PitchShifterEffect extends FXBase {
+  constructor(sampleRate, id) {
+    super(sampleRate, id);
+
+    this.bufferSize = 8192;
+    this.bufferL = new Float32Array(this.bufferSize);
+    this.bufferR = new Float32Array(this.bufferSize);
+    this.writeIndex = 0;
+
+    this.grainSize = 2048;
+    this.overlapFactor = 4;
+    this.hopSize = Math.floor(this.grainSize / this.overlapFactor);
+
+    this.grainPhase = 0;
+    this.grainBuffer = new Float32Array(this.grainSize);
+    this.grainBufferL = new Float32Array(this.grainSize);
+    this.grainBufferR = new Float32Array(this.grainSize);
+    this.outputPhase = 0;
+
+    this.fadeBuffer = this.createHannWindow(this.grainSize);
+
+    this.coarse = 0;
+    this.fine = 0;
+    this.dry = 1.0;
+    this.wet = 0.0;
+  }
+
+  createHannWindow(size) {
+    const window = new Float32Array(size);
+    for (let i = 0; i < size; i++) {
+      window[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (size - 1)));
+    }
+    return window;
+  }
+
+  process(inputL, inputR) {
+    if (!this.enabled) return [inputL, inputR];
+
+    this.bufferL[this.writeIndex] = inputL;
+    this.bufferR[this.writeIndex] = inputR;
+    this.writeIndex = (this.writeIndex + 1) % this.bufferSize;
+
+    const semitones = this.coarse + this.fine / 100.0;
+    const pitchRatio = Math.pow(2, semitones / 12);
+
+    if (Math.abs(semitones) < 0.01) {
+      return [
+        inputL * this.dry + inputL * this.wet,
+        inputR * this.dry + inputR * this.wet,
+      ];
+    }
+
+    let shiftedL = 0;
+    let shiftedR = 0;
+
+    for (let grain = 0; grain < this.overlapFactor; grain++) {
+      const grainOffset = grain * this.hopSize;
+      const readPhase =
+        (this.grainPhase + grainOffset * pitchRatio) % this.grainSize;
+
+      const samplesToRead = this.grainSize / 2;
+      const readPos = this.writeIndex - samplesToRead + readPhase * pitchRatio;
+
+      const sampleL = this.readBuffer(this.bufferL, readPos);
+      const sampleR = this.readBuffer(this.bufferR, readPos);
+
+      const windowPos = Math.floor(
+        (readPhase / this.grainSize) * (this.fadeBuffer.length - 1)
+      );
+      const windowValue = this.fadeBuffer[windowPos] || 0;
+
+      shiftedL += sampleL * windowValue;
+      shiftedR += sampleR * windowValue;
+    }
+
+    shiftedL /= this.overlapFactor;
+    shiftedR /= this.overlapFactor;
+
+    this.grainPhase = (this.grainPhase + 1) % this.grainSize;
+
+    const outputL = inputL * this.dry + shiftedL * this.wet;
+    const outputR = inputR * this.dry + shiftedR * this.wet;
+
+    return [outputL, outputR];
+  }
+
+  readBuffer(buffer, position) {
+    let pos = position;
+    while (pos < 0) pos += this.bufferSize;
+    pos = pos % this.bufferSize;
+
+    const index1 = Math.floor(pos);
+    const index2 = (index1 + 1) % this.bufferSize;
+    const frac = pos - index1;
+
+    return buffer[index1] * (1 - frac) + buffer[index2] * frac;
+  }
+
+  onParameterChange(name, value) {
+    switch (name) {
+      case 'enabled':
+        this.enabled = Math.round(value);
+        break;
+      case 'coarse':
+        this.coarse = Math.max(-24, Math.min(24, value));
+        break;
+      case 'fine':
+        this.fine = Math.max(-50, Math.min(50, value));
+        break;
+      case 'dry':
+        this.dry = Math.max(0, Math.min(1, value));
+        break;
+      case 'wet':
+        this.wet = Math.max(0, Math.min(1, value));
+        break;
+    }
+  }
+
+  reset() {
+    this.bufferL.fill(0);
+    this.bufferR.fill(0);
+    this.writeIndex = 0;
+    this.grainPhase = 0;
+    this.outputPhase = 0;
+  }
+}
+
+// ============================================================================
 // FREQUENCY SHIFTER EFFECT
 // ============================================================================
 
@@ -1006,6 +1137,7 @@ class FXChainProcessor extends AudioWorkletProcessor {
     this.effectsRegistry.set('tremolo', TremoloEffect);
     this.effectsRegistry.set('autowah', AutoWahEffect);
     this.effectsRegistry.set('freqshifter', FreqShifterEffect);
+    this.effectsRegistry.set('pitchshifter', PitchShifterEffect);
   }
 
   handleMessage(msg) {

@@ -174,20 +174,22 @@ export class FXControls {
       </div>
       <div class="fx-parameters">
         ${metadata.parameters
-          .map(
-            (p) => `
+          .map((p) => {
+            const step = p.step || 0.001;
+            const decimals = step >= 1 ? 0 : 3;
+            return `
           <div class="fx-param">
             <label>${p.label}</label>
             <input type="range"
                    min="${p.min}"
                    max="${p.max}"
-                   step="0.001"
+                   step="${step}"
                    value="${p.default}"
                    data-param="${p.name}">
-            <span class="fx-param-value">${p.default.toFixed(3)}${p.unit || ''}</span>
+            <span class="fx-param-value">${p.default.toFixed(decimals)}${p.unit || ''}</span>
           </div>
-        `
-          )
+        `;
+          })
           .join('')}
       </div>
     `;
@@ -221,7 +223,9 @@ export class FXControls {
         const valueSpan = slider.nextElementSibling;
         const metadata = this.fxController.getEffectMetadata(effectId);
         const paramMeta = metadata.parameters.find((p) => p.name === param);
-        valueSpan.textContent = `${value.toFixed(3)}${paramMeta.unit || ''}`;
+        const step = paramMeta.step || 0.001;
+        const decimals = step >= 1 ? 0 : 3;
+        valueSpan.textContent = `${value.toFixed(decimals)}${paramMeta.unit || ''}`;
       });
     });
   }
