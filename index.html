@@ -89,32 +89,6 @@
             <span class="value" id="pwmRateVal">2.00</span>
           </slider-control>
           <slider-control>
-            <span class="label">Osc1 Vol. (%)</span>
-            <input
-              class="slider"
-              id="oscVolume"
-              type="range"
-              min="0"
-              max="1"
-              step="0.001"
-              value="1"
-            />
-            <span class="value" id="oscVolumeVal">100</span>
-          </slider-control>
-          <slider-control>
-            <span class="label">Sub1 Vol. (%)</span>
-            <input
-              class="slider"
-              id="subVolume"
-              type="range"
-              min="0"
-              max="1"
-              step="0.001"
-              value="0"
-            />
-            <span class="value" id="subVolumeVal">0</span>
-          </slider-control>
-          <slider-control>
             <span class="label">FM Depth (%)</span>
             <input
               class="slider"
@@ -168,6 +142,49 @@
             <span class="value" id="osc2FineVal">0</span>
           </slider-control>
           <slider-control>
+            <span class="label">Hard Sync</span>
+            <input
+              class="slider"
+              id="hardSync"
+              type="range"
+              min="0"
+              max="1"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="hardSyncVal">Off</span>
+          </slider-control>
+        </fieldset>
+
+        <fieldset>
+          <legend>Mixer</legend>
+          <slider-control>
+            <span class="label">Osc1 Vol. (%)</span>
+            <input
+              class="slider"
+              id="oscVolume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="1"
+            />
+            <span class="value" id="oscVolumeVal">100</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Sub1 Vol. (%)</span>
+            <input
+              class="slider"
+              id="subVolume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="subVolumeVal">0</span>
+          </slider-control>
+          <slider-control>
             <span class="label">Osc2 Vol. (%)</span>
             <input
               class="slider"
@@ -192,19 +209,6 @@
               value="0"
             />
             <span class="value" id="sub2VolumeVal">0</span>
-          </slider-control>
-          <slider-control>
-            <span class="label">Hard Sync</span>
-            <input
-              class="slider"
-              id="hardSync"
-              type="range"
-              min="0"
-              max="1"
-              step="1"
-              value="0"
-            />
-            <span class="value" id="hardSyncVal">Off</span>
           </slider-control>
           <slider-control>
             <span class="label">Ring Vol. (%)</span>
@@ -235,52 +239,9 @@
         </fieldset>
 
         <fieldset>
-          <legend>Auto Pan</legend>
+          <legend>Filters</legend>
           <slider-control>
-            <span class="label">Pan Position</span>
-            <input
-              class="slider"
-              id="panPos"
-              type="range"
-              min="-1"
-              max="1"
-              step="0.01"
-              value="0"
-            />
-            <span class="value" id="panPosVal">C</span>
-          </slider-control>
-          <slider-control>
-            <span class="label">Pan Depth (%)</span>
-            <input
-              class="slider"
-              id="panDepth"
-              type="range"
-              min="0"
-              max="1"
-              step="0.001"
-              value="0"
-            />
-            <span class="value" id="panDepthVal">0</span>
-          </slider-control>
-          <slider-control>
-            <span class="label">Pan Rate (Hz)</span>
-            <input
-              class="slider"
-              id="panRate"
-              type="range"
-              min="0.1"
-              max="10"
-              step="0.01"
-              value="0.5"
-            />
-            <span class="value" id="panRateVal">0.50</span>
-          </slider-control>
-        </fieldset>
-
-        <fieldset>
-          <legend>Lowpass Filter (24dB IIR)</legend>
-          <slider-control>
-            <span class="label">Cutoff (Hz)</span>
+            <span class="label">LP Cutoff (Hz)</span>
             <input
               class="slider"
               id="filterCutoff"
@@ -293,7 +254,7 @@
             <span class="value" id="filterCutoffVal">5000</span>
           </slider-control>
           <slider-control>
-            <span class="label">Resonance (%)</span>
+            <span class="label">LP Res. (%)</span>
             <input
               class="slider"
               id="filterResonance"
@@ -305,12 +266,8 @@
             />
             <span class="value" id="filterResonanceVal">10</span>
           </slider-control>
-        </fieldset>
-
-        <fieldset>
-          <legend>Highpass Filter (18dB IIR)</legend>
           <slider-control>
-            <span class="label">Cutoff (Hz)</span>
+            <span class="label">HP Cutoff (Hz)</span>
             <input
               class="slider"
               id="hpfCutoff"
@@ -323,7 +280,7 @@
             <span class="value" id="hpfCutoffVal">20</span>
           </slider-control>
           <slider-control>
-            <span class="label">Resonance (%)</span>
+            <span class="label">HP Res. (%)</span>
             <input
               class="slider"
               id="hpfResonance"
@@ -474,7 +431,7 @@
             <span class="value" id="filterReleaseVal">200</span>
           </slider-control>
           <slider-control>
-            <span class="label">LP Env Amount (%)</span>
+            <span class="label">LP Env A. (%)</span>
             <input
               class="slider"
               id="lpEnvAmount"
@@ -487,7 +444,7 @@
             <span class="value" id="lpEnvAmountVal">0</span>
           </slider-control>
           <slider-control>
-            <span class="label">HP Env Amount (%)</span>
+            <span class="label">HP Env A. (%)</span>
             <input
               class="slider"
               id="hpEnvAmount"
@@ -498,6 +455,51 @@
               value="0"
             />
             <span class="value" id="hpEnvAmountVal">0</span>
+          </slider-control>
+        </fieldset>
+      </section>
+
+      <section>
+        <fieldset class="three-column">
+          <legend>Auto Pan</legend>
+          <slider-control>
+            <span class="label">Pan Position</span>
+            <input
+              class="slider"
+              id="panPos"
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value="0"
+            />
+            <span class="value" id="panPosVal">C</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Pan Depth (%)</span>
+            <input
+              class="slider"
+              id="panDepth"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="panDepthVal">0</span>
+          </slider-control>
+          <slider-control>
+            <span class="label">Pan Rate (Hz)</span>
+            <input
+              class="slider"
+              id="panRate"
+              type="range"
+              min="0.1"
+              max="10"
+              step="0.01"
+              value="0.5"
+            />
+            <span class="value" id="panRateVal">0.50</span>
           </slider-control>
         </fieldset>
       </section>
@@ -521,7 +523,48 @@
         </fieldset>
       </section>
 
-      <section>
+      <section class="two-column">
+        <fieldset>
+          <legend>MIDI</legend>
+          <div>
+            <div id="midiStatus" class="small mb-8">
+              Checking for MIDI devices...
+            </div>
+            <div id="midiDevices"></div>
+            <div id="midiActivity" class="small mt-8 tabular-nums">
+              Last note: -
+            </div>
+          </div>
+          <div>
+            <slider-control>
+              <span class="label">Pitch Bend (st)</span>
+              <input
+                class="slider"
+                id="pitchBendRange"
+                type="range"
+                min="0"
+                max="24"
+                step="1"
+                value="2"
+              />
+              <span class="value" id="pitchBendRangeVal">±2</span>
+            </slider-control>
+            <slider-control>
+              <span class="label">Velocity Curve</span>
+              <input
+                class="slider"
+                id="velocityCurve"
+                type="range"
+                min="-100"
+                max="100"
+                step="1"
+                value="0"
+              />
+              <span class="value" id="velocityCurveVal">Lin</span>
+            </slider-control>
+          </div>
+        </fieldset>
+
         <fieldset>
           <legend>Aftertouch Modulation</legend>
           <!-- Slot 1 -->
@@ -635,49 +678,6 @@
             />
             <span class="value" id="atAmount4Val">0.00</span>
           </slider-control>
-        </fieldset>
-      </section>
-
-      <section>
-        <fieldset class="two-column">
-          <legend>MIDI Input</legend>
-          <div id="xx">
-            <div id="midiStatus" class="small mb-8">
-              Checking for MIDI devices...
-            </div>
-            <div id="midiDevices"></div>
-            <div id="midiActivity" class="small mt-8 tabular-nums">
-              Last note: -
-            </div>
-          </div>
-          <div id="xx">
-            <slider-control>
-              <span class="label">Pitch Bend (st)</span>
-              <input
-                class="slider"
-                id="pitchBendRange"
-                type="range"
-                min="0"
-                max="24"
-                step="1"
-                value="2"
-              />
-              <span class="value" id="pitchBendRangeVal">±2</span>
-            </slider-control>
-            <slider-control>
-              <span class="label">Velocity Curve</span>
-              <input
-                class="slider"
-                id="velocityCurve"
-                type="range"
-                min="-100"
-                max="100"
-                step="1"
-                value="0"
-              />
-              <span class="value" id="velocityCurveVal">Lin</span>
-            </slider-control>
-          </div>
         </fieldset>
       </section>
 
