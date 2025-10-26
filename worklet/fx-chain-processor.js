@@ -66,7 +66,10 @@ class HardClipEffect extends FXBase {
     // Higher drive needs ATTENUATION (divide), not amplification
     const driveComp = 1.0 / Math.pow(this.drive, this.DRIVE_COMP_STRENGTH);
     // Lower threshold needs ATTENUATION (multiply by threshold)
-    const thresholdComp = Math.pow(this.threshold, this.THRESHOLD_COMP_STRENGTH);
+    const thresholdComp = Math.pow(
+      this.threshold,
+      this.THRESHOLD_COMP_STRENGTH
+    );
     const totalGain = driveComp * thresholdComp * this.BASE_GAIN;
 
     wetL *= totalGain;
