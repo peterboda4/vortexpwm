@@ -137,7 +137,7 @@ Key parameters:
 - Pulse width: 1-99% (clamped to 5-95% internally)
 - PWM LFO: 0.1-10 Hz rate, 0-100% depth
 - Filter: 20Hz-20kHz cutoff, 0-95% resonance
-- Envelope: 0-2s attack/decay, 0-3s release
+- Envelope: 0-6s attack/decay/release (both amp and filter envelopes)
 - Pitch bend: ±0-24 semitones configurable range
 
 ## Testing

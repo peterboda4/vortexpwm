@@ -28,9 +28,9 @@ export function initMIDIUI(midiInput) {
   const updateVelocityCurve = (value) => {
     const v = Math.round(+value);
     let label = 'Lin';
-    if (v < -10) label = 'Log';
-    else if (v > 10) label = 'Exp';
-    velocityCurveVal.textContent = `${label} (${v})`;
+    if (v < -10) label = 'L.';
+    else if (v > 10) label = 'E.';
+    velocityCurveVal.textContent = `${label} ${v}`;
     midiInput.setVelocityCurve(v);
   };
   updateVelocityCurve(velocityCurveEl.value);

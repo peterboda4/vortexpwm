@@ -224,14 +224,14 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         name: 'envelopeAttack',
         defaultValue: 0.005,
         minValue: 0.0,
-        maxValue: 2.0,
+        maxValue: 6.0,
         automationRate: 'k-rate',
       },
       {
         name: 'envelopeDecay',
         defaultValue: 0.1,
         minValue: 0.0,
-        maxValue: 2.0,
+        maxValue: 6.0,
         automationRate: 'k-rate',
       },
       {
@@ -245,7 +245,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         name: 'envelopeRelease',
         defaultValue: 0.2,
         minValue: 0.0,
-        maxValue: 3.0,
+        maxValue: 6.0,
         automationRate: 'k-rate',
       },
       {
@@ -424,14 +424,14 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         name: 'filterEnvAttack',
         defaultValue: 0.005,
         minValue: 0.0,
-        maxValue: 2.0,
+        maxValue: 6.0,
         automationRate: 'k-rate',
       },
       {
         name: 'filterEnvDecay',
         defaultValue: 0.1,
         minValue: 0.0,
-        maxValue: 2.0,
+        maxValue: 6.0,
         automationRate: 'k-rate',
       },
       {
@@ -445,7 +445,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         name: 'filterEnvRelease',
         defaultValue: 0.2,
         minValue: 0.0,
-        maxValue: 3.0,
+        maxValue: 6.0,
         automationRate: 'k-rate',
       },
       {
@@ -512,18 +512,56 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         velocity: 1.0,
         gate: false,
         active: false,
+
+        // Watchdog: track time since voice became active to detect stuck voices
+        activationTime: 0,
       });
     }
 
+    // Watchdog counter for periodic stuck voice detection
+    this.watchdogCounter = 0;
+    this.watchdogInterval = 44100; // Check every ~1 second at 44.1kHz
+
     this.port.onmessage = (e) => {
       const msg = e.data;
+      // Validate message structure
+      if (!msg || typeof msg !== 'object') {
+        console.error('Invalid message: expected object, got', typeof msg);
+        return;
+      }
+      if (!msg.type) {
+        console.error('Invalid message: missing type field', msg);
+        return;
+      }
+
       if (msg.type === 'noteOn') {
+        // Validate required fields
+        if (typeof msg.midi !== 'number' || isNaN(msg.midi)) {
+          console.error('Invalid noteOn: midi must be a number', msg);
+          return;
+        }
+        if (typeof msg.velocity !== 'number' || isNaN(msg.velocity)) {
+          console.error('Invalid noteOn: velocity must be a number', msg);
+          return;
+        }
         this.noteOn(msg.midi | 0, Math.max(0, Math.min(1, +msg.velocity)));
       } else if (msg.type === 'noteOff') {
+        // Validate required fields
+        if (typeof msg.midi !== 'number' || isNaN(msg.midi)) {
+          console.error('Invalid noteOff: midi must be a number', msg);
+          return;
+        }
         this.noteOff(msg.midi | 0);
       } else if (msg.type === 'aftertouch') {
+        // Validate required fields
+        if (typeof msg.value !== 'number' || isNaN(msg.value)) {
+          console.error('Invalid aftertouch: value must be a number', msg);
+          return;
+        }
         // Channel pressure (aftertouch), value 0-127 normalized to 0.0-1.0
         this.aftertouch = Math.max(0, Math.min(1, +msg.value / 127.0));
+      } else {
+        console.error('Unknown message type:', msg.type);
       }
     };
   }
@@ -559,7 +597,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
   }
 
   noteOn(midi, velocity) {
-    // If note is already playing, retrigger it
+    // If note is already playing, retrigger it (hard retrigger: reset all state)
     if (this.noteToVoice.has(midi)) {
       const voiceIndex = this.noteToVoice.get(midi);
       const voice = this.voices[voiceIndex];
@@ -567,6 +605,15 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       voice.gate = true;
       voice.envState = 'attack';
       voice.filterEnvState = 'attack';
+      voice.activationTime = currentTime;
+      // Reset phase accumulators for hard retrigger
+      voice.phase = 0.0;
+      voice.osc2Phase = 0.0;
+      voice.subPhase = 0.0;
+      voice.sub2Phase = 0.0;
+      // Reset filter state
+      voice.lpf.reset();
+      voice.hpf.reset();
       return;
     }
 
@@ -580,6 +627,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     voice.active = true;
     voice.envState = 'attack';
     voice.filterEnvState = 'attack';
+    voice.activationTime = currentTime;
 
     this.noteToVoice.set(midi, voiceIndex);
   }
@@ -736,7 +784,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
 
     // Advance Osc2 phase first
     voice.osc2Phase += osc2PhInc;
-    if (voice.osc2Phase >= 1) voice.osc2Phase -= 1;
+    voice.osc2Phase %= 1.0;
 
     // Generate Osc2 raw waveform for FM modulation
     const osc2Raw = this.generateWaveform(
@@ -764,7 +812,11 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
 
     // Apply FM modulation: modulate frequency with Osc2 output
     const fmModulation = osc2Raw * fmDepthNow * baseFreq * 0.5; // Scale modulation amount
-    const modulatedFreq = baseFreq + fmModulation;
+    // Clamp modulated frequency to prevent negative values and aliasing
+    const modulatedFreq = Math.max(
+      20,
+      Math.min(this.sampleRate * 0.48, baseFreq + fmModulation)
+    );
 
     // Store previous Osc1 phase for hard sync detection
     const prevOsc1Phase = voice.phase;
@@ -772,7 +824,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     // Phase advance for Osc1 with FM
     const phInc = modulatedFreq / sr;
     voice.phase += phInc;
-    if (voice.phase >= 1) voice.phase -= 1;
+    voice.phase %= 1.0;
 
     // Apply hard sync: reset Osc2 phase when Osc1 phase wraps
     if (hardSyncNow > 0) {
@@ -786,7 +838,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     const subFreq = baseFreq * 0.5;
     const subPhInc = subFreq / sr;
     voice.subPhase += subPhInc;
-    if (voice.subPhase >= 1) voice.subPhase -= 1;
+    voice.subPhase %= 1.0;
 
     // PWM LFO
     let pwmRateNow =
@@ -815,7 +867,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         : params.pwmDepth[0];
 
     voice.pwmLfoPhase += pwmRateNow / sr;
-    if (voice.pwmLfoPhase >= 1) voice.pwmLfoPhase -= 1;
+    voice.pwmLfoPhase %= 1.0;
 
     const pwmMod = Math.sin(twoPi * voice.pwmLfoPhase);
     // Oscillate around pulseWidth (PW ± modulation)
@@ -860,7 +912,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     );
     let osc2Output = 0.0;
     if (osc2VolNow > 0) {
-      osc2Output = osc2Raw * osc2VolNow;
+      osc2Output = osc2Raw * osc2VolNow * 1.5;
     }
 
     // Get sub2 volume parameter
@@ -880,7 +932,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       const sub2Freq = osc2Freq * 0.5;
       const sub2PhInc = sub2Freq / sr;
       voice.sub2Phase += sub2PhInc;
-      if (voice.sub2Phase >= 1) voice.sub2Phase -= 1;
+      voice.sub2Phase %= 1.0;
       sub2Output =
         this.generateWaveform(voice.sub2Phase, sub2PhInc, osc2WaveformNow) *
         sub2VolNow;
@@ -1012,7 +1064,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         voice.env = 1.0;
         voice.envState = 'decay';
       } else {
-        const attackCoeff = 1.0 - Math.exp(-1.0 / (envA * sr));
+        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
+        const attackCoeff = 1.0 - Math.exp(-1.0 / ((envA / 4.6) * sr));
         voice.env += (1.0 - voice.env) * attackCoeff;
         if (voice.env >= 0.9999) {
           voice.env = 1.0;
@@ -1027,7 +1080,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         voice.env = voice.sustainLevel;
         voice.envState = voice.gate ? 'sustain' : 'release';
       } else {
-        const decayCoeff = 1.0 - Math.exp(-1.0 / (envD * sr));
+        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
+        const decayCoeff = 1.0 - Math.exp(-1.0 / ((envD / 4.6) * sr));
         voice.env += (voice.sustainLevel - voice.env) * decayCoeff;
         if (Math.abs(voice.env - voice.sustainLevel) < 0.0001) {
           voice.env = voice.sustainLevel;
@@ -1052,7 +1106,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
           voice.midi = -1;
         }
       } else {
-        const releaseCoeff = 1.0 - Math.exp(-1.0 / (envR * sr));
+        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
+        const releaseCoeff = 1.0 - Math.exp(-1.0 / ((envR / 4.6) * sr));
         voice.env += (envFloor - voice.env) * releaseCoeff;
         if (voice.env <= envFloor * 1.5) {
           voice.env = 0.0;
@@ -1079,7 +1134,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         voice.filterEnv = 1.0;
         voice.filterEnvState = 'decay';
       } else {
-        const attackCoeff = 1.0 - Math.exp(-1.0 / (filterEnvA * sr));
+        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
+        const attackCoeff = 1.0 - Math.exp(-1.0 / ((filterEnvA / 4.6) * sr));
         voice.filterEnv += (1.0 - voice.filterEnv) * attackCoeff;
         if (voice.filterEnv >= 0.9999) {
           voice.filterEnv = 1.0;
@@ -1094,7 +1150,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         voice.filterEnv = voice.filterSustainLevel;
         voice.filterEnvState = voice.gate ? 'sustain' : 'release';
       } else {
-        const decayCoeff = 1.0 - Math.exp(-1.0 / (filterEnvD * sr));
+        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
+        const decayCoeff = 1.0 - Math.exp(-1.0 / ((filterEnvD / 4.6) * sr));
         voice.filterEnv +=
           (voice.filterSustainLevel - voice.filterEnv) * decayCoeff;
         if (Math.abs(voice.filterEnv - voice.filterSustainLevel) < 0.0001) {
@@ -1115,7 +1172,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         voice.filterEnv = 0.0;
         voice.filterEnvState = 'idle';
       } else {
-        const releaseCoeff = 1.0 - Math.exp(-1.0 / (filterEnvR * sr));
+        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
+        const releaseCoeff = 1.0 - Math.exp(-1.0 / ((filterEnvR / 4.6) * sr));
         voice.filterEnv += (filterEnvFloor - voice.filterEnv) * releaseCoeff;
         if (voice.filterEnv <= filterEnvFloor * 1.5) {
           voice.filterEnv = 0.0;
@@ -1147,7 +1205,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     const panPosNow =
       params.panPos.length > 1 ? params.panPos[sampleIndex] : params.panPos[0];
     voice.panLfoPhase += panRateNow / sr;
-    if (voice.panLfoPhase >= 1) voice.panLfoPhase -= 1;
+    voice.panLfoPhase %= 1.0;
     const panMod = Math.sin(twoPi * voice.panLfoPhase) * panDepthNow;
     // Clamp final pan position to [-1, 1]
     let pan = Math.max(-1, Math.min(1, panPosNow + panMod));
@@ -1161,7 +1219,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     // Mix between fixed velocity (1.0) and actual velocity based on velocityAmt
     const effectiveVelocity =
       1.0 - params.velocityAmt + voice.velocity * params.velocityAmt;
-    const out = y * voice.env * effectiveVelocity * masterNow * 0.2; // Reduced volume for polyphony
+    const out = y * voice.env * effectiveVelocity * masterNow * 0.6; // Reduced volume for polyphony
 
     return {
       left: out * lg,
@@ -1175,6 +1233,28 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     const R = output[1];
 
     if (!L || !R) return true;
+
+    // Watchdog: periodically check for stuck voices (max 10 seconds active)
+    this.watchdogCounter += L.length;
+    if (this.watchdogCounter >= this.watchdogInterval) {
+      this.watchdogCounter = 0;
+      const maxVoiceTime = 10.0; // Force-idle voices stuck for >10 seconds
+      for (let i = 0; i < this.maxVoices; i++) {
+        const voice = this.voices[i];
+        if (voice.active && currentTime - voice.activationTime > maxVoiceTime) {
+          // Force voice to idle state
+          voice.active = false;
+          voice.envState = 'idle';
+          voice.filterEnvState = 'idle';
+          voice.env = 0.0;
+          voice.filterEnv = 0.0;
+          if (voice.midi >= 0) {
+            this.noteToVoice.delete(voice.midi);
+            voice.midi = -1;
+          }
+        }
+      }
+    }
 
     // Cache parameters
     const params = {

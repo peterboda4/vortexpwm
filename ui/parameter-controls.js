@@ -1,12 +1,19 @@
 // ui/parameter-controls.js - synth parameter sliders and controls
 
 export function initParameterControls(synth) {
-  const byId = (id) => document.getElementById(id);
+  const byId = (id) => {
+    const element = document.getElementById(id);
+    if (!element) {
+      console.error(`Element with id "${id}" not found`);
+    }
+    return element;
+  };
 
   // Bind slider helpers
   const bind = (id, param, fmt = (v) => v.toString()) => {
     const el = byId(id);
     const val = byId(id + 'Val');
+    if (!el || !val) return;
     const apply = (v) => {
       val.textContent = fmt(v);
       synth.setParam(param, +v);
@@ -27,16 +34,18 @@ export function initParameterControls(synth) {
   // Oscillator 2 controls
   const osc2WaveformEl = byId('osc2Waveform');
   const osc2WaveformVal = byId('osc2WaveformVal');
-  const waveformNames = ['Saw', 'Triangle', 'Sine', 'Square'];
-  const applyOsc2Waveform = (v) => {
-    const idx = Math.round(+v);
-    osc2WaveformVal.textContent = waveformNames[idx] || 'Saw';
-    synth.setParam('oscillator2Waveform', idx);
-  };
-  applyOsc2Waveform(osc2WaveformEl.value);
-  osc2WaveformEl.addEventListener('change', (e) =>
-    applyOsc2Waveform(e.target.value)
-  );
+  if (osc2WaveformEl && osc2WaveformVal) {
+    const waveformNames = ['Saw', 'Triangle', 'Sine', 'Square'];
+    const applyOsc2Waveform = (v) => {
+      const idx = Math.round(+v);
+      osc2WaveformVal.textContent = waveformNames[idx] || 'Saw';
+      synth.setParam('oscillator2Waveform', idx);
+    };
+    applyOsc2Waveform(osc2WaveformEl.value);
+    osc2WaveformEl.addEventListener('change', (e) =>
+      applyOsc2Waveform(e.target.value)
+    );
+  }
 
   bind('osc2Coarse', 'oscillator2CoarseTune', (v) => Math.round(+v));
   bind('osc2Fine', 'oscillator2FineTune', (v) => Math.round(+v));
@@ -67,6 +76,7 @@ export function initParameterControls(synth) {
   const bindEnvAmount = (id, param) => {
     const el = byId(id);
     const val = byId(id + 'Val');
+    if (!el || !val) return;
     const apply = (v) => {
       const percent = Math.round(+v);
       val.textContent = percent;
@@ -81,6 +91,7 @@ export function initParameterControls(synth) {
   const bindExpFilter = (id, param, fmt, gentle = false) => {
     const el = byId(id);
     const val = byId(id + 'Val');
+    if (!el || !val) return;
     const apply = (sliderValue) => {
       const minFreq = 20;
       const maxFreq = 20000;

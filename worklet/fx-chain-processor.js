@@ -1202,7 +1202,16 @@ class FXChainProcessor extends AudioWorkletProcessor {
 
   setEffectParameter(instanceId, param, value) {
     const effect = this.effectsChain.find((e) => e.id === instanceId);
-    if (effect) effect.setParameter(param, value);
+    if (effect) {
+      effect.setParameter(param, value);
+    } else {
+      // Effect not found - likely removed during in-flight parameter update
+      // Send error message back to main thread for logging
+      this.port.postMessage({
+        type: 'error',
+        message: `Effect ${instanceId} not found for parameter update`,
+      });
+    }
   }
 
   setEffectEnabled(instanceId, enabled) {
