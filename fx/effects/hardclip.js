@@ -12,38 +12,44 @@ export class HardClipEffect extends FXBase {
     this.drive = 1.0; // Pre-gain (1-20)
     this.threshold = 0.5; // Clipping threshold (0.1-1)
     this.mix = 0.5; // Dry/wet mix (0-1)
+
+    // Compensation constants (tunable)
+    this.DRIVE_COMP_STRENGTH = 0.75;
+    this.THRESHOLD_COMP_STRENGTH = 0.3;
+    this.BASE_GAIN = 1.0;
   }
 
   process(inputL, inputR) {
     if (!this.enabled) return [inputL, inputR];
 
-    // Apply drive (pre-gain)
-    let processedL = inputL * this.drive;
-    let processedR = inputR * this.drive;
+    // Apply drive
+    let wetL = inputL * this.drive;
+    let wetR = inputR * this.drive;
 
     // Hard clip
-    processedL = Math.max(
-      -this.threshold,
-      Math.min(this.threshold, processedL)
-    );
-    processedR = Math.max(
-      -this.threshold,
-      Math.min(this.threshold, processedR)
-    );
+    wetL = Math.max(-this.threshold, Math.min(this.threshold, wetL));
+    wetR = Math.max(-this.threshold, Math.min(this.threshold, wetR));
 
-    // Normalize by threshold
-    processedL /= this.threshold;
-    processedR /= this.threshold;
+    // Normalize to [-1, 1]
+    wetL /= this.threshold;
+    wetR /= this.threshold;
 
-    // Apply makeup gain that compensates for drive
-    // At drive=1, gain=0.5; at drive=20, gain=0.1
-    const makeupGain = 0.5 / Math.sqrt(this.drive);
-    processedL *= makeupGain;
-    processedR *= makeupGain;
+    // Apply compensation
+    // Higher drive needs ATTENUATION (divide), not amplification
+    const driveComp = 1.0 / Math.pow(this.drive, this.DRIVE_COMP_STRENGTH);
+    // Lower threshold needs ATTENUATION (multiply by threshold)
+    const thresholdComp = Math.pow(
+      this.threshold,
+      this.THRESHOLD_COMP_STRENGTH
+    );
+    const totalGain = driveComp * thresholdComp * this.BASE_GAIN;
+
+    wetL *= totalGain;
+    wetR *= totalGain;
 
     // Mix dry/wet
-    const outputL = inputL * (1 - this.mix) + processedL * this.mix;
-    const outputR = inputR * (1 - this.mix) + processedR * this.mix;
+    const outputL = inputL * (1 - this.mix) + wetL * this.mix;
+    const outputR = inputR * (1 - this.mix) + wetR * this.mix;
 
     return [outputL, outputR];
   }

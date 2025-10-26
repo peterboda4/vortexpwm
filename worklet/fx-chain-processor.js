@@ -40,28 +40,44 @@ class HardClipEffect extends FXBase {
     this.drive = 1.0;
     this.threshold = 0.5;
     this.mix = 1.0;
+
+    // Compensation constants (tunable)
+    this.DRIVE_COMP_STRENGTH = 0.75;
+    this.THRESHOLD_COMP_STRENGTH = 0.3;
+    this.BASE_GAIN = 1.0;
   }
 
   process(inputL, inputR) {
     if (!this.enabled) return [inputL, inputR];
 
-    let processedL = inputL * this.drive;
-    let processedR = inputR * this.drive;
+    // Apply drive
+    let wetL = inputL * this.drive;
+    let wetR = inputR * this.drive;
 
-    processedL = Math.max(
-      -this.threshold,
-      Math.min(this.threshold, processedL)
+    // Hard clip
+    wetL = Math.max(-this.threshold, Math.min(this.threshold, wetL));
+    wetR = Math.max(-this.threshold, Math.min(this.threshold, wetR));
+
+    // Normalize to [-1, 1]
+    wetL /= this.threshold;
+    wetR /= this.threshold;
+
+    // Apply compensation
+    // Higher drive needs ATTENUATION (divide), not amplification
+    const driveComp = 1.0 / Math.pow(this.drive, this.DRIVE_COMP_STRENGTH);
+    // Lower threshold needs ATTENUATION (multiply by threshold)
+    const thresholdComp = Math.pow(
+      this.threshold,
+      this.THRESHOLD_COMP_STRENGTH
     );
-    processedR = Math.max(
-      -this.threshold,
-      Math.min(this.threshold, processedR)
-    );
+    const totalGain = driveComp * thresholdComp * this.BASE_GAIN;
 
-    processedL /= this.threshold;
-    processedR /= this.threshold;
+    wetL *= totalGain;
+    wetR *= totalGain;
 
-    const outputL = inputL * (1 - this.mix) + processedL * this.mix;
-    const outputR = inputR * (1 - this.mix) + processedR * this.mix;
+    // Mix dry/wet
+    const outputL = inputL * (1 - this.mix) + wetL * this.mix;
+    const outputR = inputR * (1 - this.mix) + wetR * this.mix;
 
     return [outputL, outputR];
   }
@@ -534,9 +550,9 @@ class ReverbEffect extends FXBase {
       let idxL = this.allpassIndicesL[i];
 
       const bufferedL = bufL[idxL];
-      const inputL = allpassOutL;
-      allpassOutL = -inputL + bufferedL;
-      bufL[idxL] = inputL + bufferedL * 0.5;
+      const apInputL = allpassOutL;
+      allpassOutL = -apInputL + bufferedL;
+      bufL[idxL] = apInputL + bufferedL * 0.5;
 
       this.allpassIndicesL[i] = (idxL + 1) % delayL;
 
@@ -545,9 +561,9 @@ class ReverbEffect extends FXBase {
       let idxR = this.allpassIndicesR[i];
 
       const bufferedR = bufR[idxR];
-      const inputR = allpassOutR;
-      allpassOutR = -inputR + bufferedR;
-      bufR[idxR] = inputR + bufferedR * 0.5;
+      const apInputR = allpassOutR;
+      allpassOutR = -apInputR + bufferedR;
+      bufR[idxR] = apInputR + bufferedR * 0.5;
 
       this.allpassIndicesR[i] = (idxR + 1) % delayR;
     }
