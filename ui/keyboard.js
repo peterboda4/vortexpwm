@@ -3,23 +3,32 @@
 import { midiToNoteName } from '../utils/music.js';
 
 export function initKeyboard(synth) {
-  const byId = (id) => document.getElementById(id);
+  const byId = (id) => {
+    const element = document.getElementById(id);
+    if (!element) {
+      console.error(`Element with id "${id}" not found`);
+    }
+    return element;
+  };
 
   // Velocity slider (for keyboard & button input)
   let currentVelocity = 0.9;
   const velocitySlider = byId('velocity');
   const velocityVal = byId('velocityVal');
-  const updateVelocity = (v) => {
-    currentVelocity = +v;
-    velocityVal.textContent = (+v).toFixed(2);
-  };
-  updateVelocity(velocitySlider.value);
-  velocitySlider.addEventListener('input', (e) =>
-    updateVelocity(e.target.value)
-  );
+  if (velocitySlider && velocityVal) {
+    const updateVelocity = (v) => {
+      currentVelocity = +v;
+      velocityVal.textContent = (+v).toFixed(2);
+    };
+    updateVelocity(velocitySlider.value);
+    velocitySlider.addEventListener('input', (e) =>
+      updateVelocity(e.target.value)
+    );
+  }
 
   // Build 5-octave keyboard with all semitones (C1..C6 = 61 keys)
-  const kbd = document.getElementById('kbd');
+  const kbd = byId('kbd');
+  if (!kbd) return;
 
   // Create inner wrapper for centering
   const kbdInner = document.createElement('div');
@@ -126,7 +135,6 @@ export function initKeyboard(synth) {
     ['n', 57], // A3
     ['j', 58], // A#3
     ['m', 59], // B3
-    [',', 60], // C4
     // Top row - C4 octave (MIDI 60-72)
     ['q', 60], // C4
     ['2', 61], // C#4

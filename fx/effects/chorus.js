@@ -58,8 +58,12 @@ export class ChorusEffect extends FXBase {
       const delayMsL = this.delay + lfoL * modulationRange;
       const delayMsR = this.delay + lfoR * modulationRange;
 
-      const delaySamplesL = (delayMsL / 1000) * this.sampleRate;
-      const delaySamplesR = (delayMsR / 1000) * this.sampleRate;
+      // Clamp delay to prevent buffer overflow
+      const clampedDelayMsL = Math.max(1, Math.min(this.maxDelayMs, delayMsL));
+      const clampedDelayMsR = Math.max(1, Math.min(this.maxDelayMs, delayMsR));
+
+      const delaySamplesL = (clampedDelayMsL / 1000) * this.sampleRate;
+      const delaySamplesR = (clampedDelayMsR / 1000) * this.sampleRate;
 
       // Read from delay buffer with linear interpolation
       chorusL += this.readDelayBuffer(this.bufferL, delaySamplesL);

@@ -11,6 +11,7 @@ export class FXController {
     this.activeEffects = new Map();
     this.chainOrder = [];
     this.metadataLoaded = false;
+    this.instanceCounter = 0;
   }
 
   async loadMetadata() {
@@ -79,7 +80,7 @@ export class FXController {
   }
 
   addEffect(effectId, position = -1) {
-    const instanceId = `${effectId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const instanceId = `${effectId}_${++this.instanceCounter}`;
 
     this.fxNode.port.postMessage({
       type: 'addEffect',
@@ -113,6 +114,12 @@ export class FXController {
   }
 
   setParameter(instanceId, param, value) {
+    // Check if effect exists before sending message to prevent race condition
+    if (!this.activeEffects.has(instanceId)) {
+      console.warn(`Cannot set parameter for removed effect: ${instanceId}`);
+      return;
+    }
+
     this.fxNode.port.postMessage({
       type: 'setParameter',
       instanceId,
@@ -160,6 +167,9 @@ export class FXController {
           detail: { type: 'removed', instanceId: msg.instanceId },
         })
       );
+    } else if (msg.type === 'error') {
+      // Handle error messages from worklet (e.g., race conditions)
+      console.warn(`FX Chain error: ${msg.message}`);
     }
   }
 
