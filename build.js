@@ -136,31 +136,47 @@ function patchModuleFromCode(filePath, code, moduleMap, options = {}) {
   return code;
 }
 
-// Collect all JS modules
-const modulePaths = [
-  'main.js',
-  'audio/synth.js',
-  'midi/midi-input.js',
-  'utils/music.js',
-  'ui/controls.js',
-  'ui/parameter-controls.js',
-  'ui/keyboard.js',
-  'ui/midi-controls.js',
-  'ui/fx-controls.js',
-  'fx/fx-controller.js',
-  'fx/fx-base.js',
-  'fx/effects/hardclip.js',
-  'fx/effects/phaser.js',
-  'fx/effects/bitcrusher.js',
-  'fx/effects/chorus.js',
-  'fx/effects/delay.js',
-  'fx/effects/reverb.js',
-  'fx/effects/flanger.js',
-  'fx/effects/tremolo.js',
-  'fx/effects/autowah.js',
-  'fx/effects/freqshifter.js',
-  'fx/effects/pitchshifter.js',
-];
+// Automatically collect all JS modules
+function collectModules(dir, basePath = '') {
+  const modules = [];
+  const entries = fs.readdirSync(path.join(__dirname, dir), {
+    withFileTypes: true,
+  });
+
+  for (const entry of entries) {
+    const relativePath = basePath ? `${basePath}/${entry.name}` : entry.name;
+
+    if (entry.isDirectory()) {
+      // Skip certain directories
+      if (
+        ['node_modules', 'dist', '.git', 'tests', 'worklet'].includes(
+          entry.name
+        )
+      ) {
+        continue;
+      }
+      // Recursively collect from subdirectories
+      modules.push(...collectModules(path.join(dir, entry.name), relativePath));
+    } else if (
+      entry.isFile() &&
+      entry.name.endsWith('.js') &&
+      !entry.name.endsWith('.test.js')
+    ) {
+      modules.push(relativePath);
+    }
+  }
+
+  return modules;
+}
+
+const modulePaths = collectModules('.')
+  .filter((p) => {
+    // Exclude test files and build scripts
+    return !p.includes('build.js') && !p.endsWith('.test.js');
+  })
+  .sort(); // Sort for deterministic builds
+
+console.log(`Collected ${modulePaths.length} modules:`, modulePaths);
 
 // Build process: three-pass patching to handle nested imports
 const moduleMap = new Map();

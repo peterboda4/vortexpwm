@@ -24,7 +24,7 @@
         <fieldset>
           <legend>Oscillator 1 (PWM)</legend>
           <slider-control>
-            <span class="label">Coarse (st)</span>
+            <label class="label" for="coarse">Coarse (st)</label>
             <input
               class="slider"
               id="coarse"
@@ -37,7 +37,7 @@
             <span class="value" id="coarseVal">0</span>
           </slider-control>
           <slider-control>
-            <span class="label">Fine (cents)</span>
+            <label class="label" for="fine">Fine (cents)</label>
             <input
               class="slider"
               id="fine"
@@ -50,7 +50,7 @@
             <span class="value" id="fineVal">0</span>
           </slider-control>
           <slider-control>
-            <span class="label">PW (%)</span>
+            <label class="label" for="pulseWidth">PW (%)</label>
             <input
               class="slider"
               id="pulseWidth"
@@ -63,7 +63,7 @@
             <span class="value" id="pulseWidthVal">50</span>
           </slider-control>
           <slider-control>
-            <span class="label">PW Depth (%)</span>
+            <label class="label" for="pwmDepth">PW Depth (%)</label>
             <input
               class="slider"
               id="pwmDepth"
@@ -76,7 +76,7 @@
             <span class="value" id="pwmDepthVal">50</span>
           </slider-control>
           <slider-control>
-            <span class="label">PW Rate (Hz)</span>
+            <label class="label" for="pwmRate">PW Rate (Hz)</label>
             <input
               class="slider"
               id="pwmRate"
@@ -89,7 +89,7 @@
             <span class="value" id="pwmRateVal">2.00</span>
           </slider-control>
           <slider-control>
-            <span class="label">FM Depth (%)</span>
+            <label class="label" for="fmDepth">FM Depth (%)</label>
             <input
               class="slider"
               id="fmDepth"
@@ -106,7 +106,7 @@
         <fieldset>
           <legend>Oscillator 2</legend>
           <slider-control>
-            <span class="label">Waveform</span>
+            <label class="label" for="osc2Waveform">Waveform</label>
             <select class="slider" id="osc2Waveform">
               <option value="0">Saw</option>
               <option value="1">Triangle</option>
@@ -116,7 +116,7 @@
             <span class="value" id="osc2WaveformVal">Saw</span>
           </slider-control>
           <slider-control>
-            <span class="label">Coarse (st)</span>
+            <label class="label" for="osc2Coarse">Coarse (st)</label>
             <input
               class="slider"
               id="osc2Coarse"
@@ -129,7 +129,7 @@
             <span class="value" id="osc2CoarseVal">0</span>
           </slider-control>
           <slider-control>
-            <span class="label">Fine (cents)</span>
+            <label class="label" for="osc2Fine">Fine (cents)</label>
             <input
               class="slider"
               id="osc2Fine"
@@ -142,7 +142,7 @@
             <span class="value" id="osc2FineVal">0</span>
           </slider-control>
           <slider-control>
-            <span class="label">Hard Sync</span>
+            <label class="label" for="hardSync">Hard Sync</label>
             <input
               class="slider"
               id="hardSync"
@@ -159,7 +159,7 @@
         <fieldset>
           <legend>Mixer</legend>
           <slider-control>
-            <span class="label">Osc1 Vol. (%)</span>
+            <label class="label" for="oscVolume">Osc1 Vol. (%)</label>
             <input
               class="slider"
               id="oscVolume"
@@ -172,7 +172,7 @@
             <span class="value" id="oscVolumeVal">100</span>
           </slider-control>
           <slider-control>
-            <span class="label">Sub1 Vol. (%)</span>
+            <label class="label" for="subVolume">Sub1 Vol. (%)</label>
             <input
               class="slider"
               id="subVolume"
@@ -185,7 +185,7 @@
             <span class="value" id="subVolumeVal">0</span>
           </slider-control>
           <slider-control>
-            <span class="label">Osc2 Vol. (%)</span>
+            <label class="label" for="osc2Volume">Osc2 Vol. (%)</label>
             <input
               class="slider"
               id="osc2Volume"
@@ -198,7 +198,7 @@
             <span class="value" id="osc2VolumeVal">0</span>
           </slider-control>
           <slider-control>
-            <span class="label">Sub2 Vol. (%)</span>
+            <label class="label" for="sub2Volume">Sub2 Vol. (%)</label>
             <input
               class="slider"
               id="sub2Volume"
@@ -211,7 +211,7 @@
             <span class="value" id="sub2VolumeVal">0</span>
           </slider-control>
           <slider-control>
-            <span class="label">Ring Vol. (%)</span>
+            <label class="label" for="ringVolume">Ring Vol. (%)</label>
             <input
               class="slider"
               id="ringVolume"
@@ -224,7 +224,7 @@
             <span class="value" id="ringVolumeVal">0</span>
           </slider-control>
           <slider-control>
-            <span class="label">Noise Vol. (%)</span>
+            <label class="label" for="noiseVolume">Noise Vol. (%)</label>
             <input
               class="slider"
               id="noiseVolume"
@@ -241,7 +241,7 @@
         <fieldset>
           <legend>Filters</legend>
           <slider-control>
-            <span class="label">LP Cutoff (Hz)</span>
+            <label class="label" for="filterCutoff">LP Cutoff (Hz)</label>
             <input
               class="slider"
               id="filterCutoff"
@@ -254,7 +254,7 @@
             <span class="value" id="filterCutoffVal">5000</span>
           </slider-control>
           <slider-control>
-            <span class="label">LP Res. (%)</span>
+            <label class="label" for="filterResonance">LP Res. (%)</label>
             <input
               class="slider"
               id="filterResonance"
@@ -267,7 +267,7 @@
             <span class="value" id="filterResonanceVal">10</span>
           </slider-control>
           <slider-control>
-            <span class="label">HP Cutoff (Hz)</span>
+            <label class="label" for="hpfCutoff">HP Cutoff (Hz)</label>
             <input
               class="slider"
               id="hpfCutoff"
@@ -280,7 +280,7 @@
             <span class="value" id="hpfCutoffVal">20</span>
           </slider-control>
           <slider-control>
-            <span class="label">HP Res. (%)</span>
+            <label class="label" for="hpfResonance">HP Res. (%)</label>
             <input
               class="slider"
               id="hpfResonance"
@@ -297,7 +297,7 @@
         <fieldset>
           <legend>Amplifier (ADSR + Master)</legend>
           <slider-control>
-            <span class="label">Attack (ms)</span>
+            <label class="label" for="attack">Attack (ms)</label>
             <input
               class="slider"
               id="attack"
@@ -310,7 +310,7 @@
             <span class="value" id="attackVal">5</span>
           </slider-control>
           <slider-control>
-            <span class="label">Decay (ms)</span>
+            <label class="label" for="decay">Decay (ms)</label>
             <input
               class="slider"
               id="decay"
@@ -323,7 +323,7 @@
             <span class="value" id="decayVal">100</span>
           </slider-control>
           <slider-control>
-            <span class="label">Sustain (%)</span>
+            <label class="label" for="sustain">Sustain (%)</label>
             <input
               class="slider"
               id="sustain"
@@ -336,7 +336,7 @@
             <span class="value" id="sustainVal">0.700</span>
           </slider-control>
           <slider-control>
-            <span class="label">Release (ms)</span>
+            <label class="label" for="release">Release (ms)</label>
             <input
               class="slider"
               id="release"
@@ -349,7 +349,7 @@
             <span class="value" id="releaseVal">200</span>
           </slider-control>
           <slider-control>
-            <span class="label">Vel. Amt. (%)</span>
+            <label class="label" for="velocityAmt">Vel. Amt. (%)</label>
             <input
               class="slider"
               id="velocityAmt"
@@ -362,7 +362,7 @@
             <span class="value" id="velocityAmtVal">50</span>
           </slider-control>
           <slider-control>
-            <span class="label">Master Vol. (%)</span>
+            <label class="label" for="master">Master Vol. (%)</label>
             <input
               class="slider"
               id="master"
@@ -379,7 +379,7 @@
         <fieldset>
           <legend>Filter Env (ADSR)</legend>
           <slider-control>
-            <span class="label">Attack (ms)</span>
+            <label class="label" for="filterAttack">Attack (ms)</label>
             <input
               class="slider"
               id="filterAttack"
@@ -392,7 +392,7 @@
             <span class="value" id="filterAttackVal">5</span>
           </slider-control>
           <slider-control>
-            <span class="label">Decay (ms)</span>
+            <label class="label" for="filterDecay">Decay (ms)</label>
             <input
               class="slider"
               id="filterDecay"
@@ -405,7 +405,7 @@
             <span class="value" id="filterDecayVal">100</span>
           </slider-control>
           <slider-control>
-            <span class="label">Sustain (%)</span>
+            <label class="label" for="filterSustain">Sustain (%)</label>
             <input
               class="slider"
               id="filterSustain"
@@ -418,7 +418,7 @@
             <span class="value" id="filterSustainVal">0.700</span>
           </slider-control>
           <slider-control>
-            <span class="label">Release (ms)</span>
+            <label class="label" for="filterRelease">Release (ms)</label>
             <input
               class="slider"
               id="filterRelease"
@@ -431,7 +431,7 @@
             <span class="value" id="filterReleaseVal">200</span>
           </slider-control>
           <slider-control>
-            <span class="label">LP Env A. (%)</span>
+            <label class="label" for="lpEnvAmount">LP Env A. (%)</label>
             <input
               class="slider"
               id="lpEnvAmount"
@@ -444,7 +444,7 @@
             <span class="value" id="lpEnvAmountVal">0</span>
           </slider-control>
           <slider-control>
-            <span class="label">HP Env A. (%)</span>
+            <label class="label" for="hpEnvAmount">HP Env A. (%)</label>
             <input
               class="slider"
               id="hpEnvAmount"
@@ -463,7 +463,7 @@
         <fieldset class="three-column">
           <legend>Auto Pan</legend>
           <slider-control>
-            <span class="label">Pan Position</span>
+            <label class="label" for="panPos">Pan Position</label>
             <input
               class="slider"
               id="panPos"
@@ -476,7 +476,7 @@
             <span class="value" id="panPosVal">C</span>
           </slider-control>
           <slider-control>
-            <span class="label">Pan Depth (%)</span>
+            <label class="label" for="panDepth">Pan Depth (%)</label>
             <input
               class="slider"
               id="panDepth"
@@ -489,7 +489,7 @@
             <span class="value" id="panDepthVal">0</span>
           </slider-control>
           <slider-control>
-            <span class="label">Pan Rate (Hz)</span>
+            <label class="label" for="panRate">Pan Rate (Hz)</label>
             <input
               class="slider"
               id="panRate"
@@ -537,7 +537,7 @@
           </div>
           <div>
             <slider-control>
-              <span class="label">Pitch Bend (st)</span>
+              <label class="label" for="pitchBendRange">Pitch Bend (st)</label>
               <input
                 class="slider"
                 id="pitchBendRange"
@@ -550,7 +550,7 @@
               <span class="value" id="pitchBendRangeVal">±2</span>
             </slider-control>
             <slider-control>
-              <span class="label">Velocity Curve</span>
+              <label class="label" for="velocityCurve">Velocity Curve</label>
               <input
                 class="slider"
                 id="velocityCurve"
@@ -569,7 +569,7 @@
           <legend>Aftertouch Modulation</legend>
           <!-- Slot 1 -->
           <slider-control>
-            <span class="label">Slot 1 Dest</span>
+            <label class="label" for="atDest1">Slot 1 Dest</label>
             <input
               class="slider"
               id="atDest1"
@@ -582,7 +582,7 @@
             <span class="value" id="atDest1Val">None</span>
           </slider-control>
           <slider-control>
-            <span class="label">Slot 1 Amount</span>
+            <label class="label" for="atAmount1">Slot 1 Amount</label>
             <input
               class="slider"
               id="atAmount1"
@@ -597,7 +597,7 @@
 
           <!-- Slot 2 -->
           <slider-control>
-            <span class="label">Slot 2 Dest</span>
+            <label class="label" for="atDest2">Slot 2 Dest</label>
             <input
               class="slider"
               id="atDest2"
@@ -610,7 +610,7 @@
             <span class="value" id="atDest2Val">None</span>
           </slider-control>
           <slider-control>
-            <span class="label">Slot 2 Amount</span>
+            <label class="label" for="atAmount2">Slot 2 Amount</label>
             <input
               class="slider"
               id="atAmount2"
@@ -625,7 +625,7 @@
 
           <!-- Slot 3 -->
           <slider-control>
-            <span class="label">Slot 3 Dest</span>
+            <label class="label" for="atDest3">Slot 3 Dest</label>
             <input
               class="slider"
               id="atDest3"
@@ -638,7 +638,7 @@
             <span class="value" id="atDest3Val">None</span>
           </slider-control>
           <slider-control>
-            <span class="label">Slot 3 Amount</span>
+            <label class="label" for="atAmount3">Slot 3 Amount</label>
             <input
               class="slider"
               id="atAmount3"
@@ -653,7 +653,7 @@
 
           <!-- Slot 4 -->
           <slider-control>
-            <span class="label">Slot 4 Dest</span>
+            <label class="label" for="atDest4">Slot 4 Dest</label>
             <input
               class="slider"
               id="atDest4"
@@ -666,7 +666,7 @@
             <span class="value" id="atDest4Val">None</span>
           </slider-control>
           <slider-control>
-            <span class="label">Slot 4 Amount</span>
+            <label class="label" for="atAmount4">Slot 4 Amount</label>
             <input
               class="slider"
               id="atAmount4"
@@ -685,7 +685,7 @@
         <fieldset>
           <legend>Keyboard (2 octaves)</legend>
           <slider-control>
-            <span class="label">Velocity</span>
+            <label class="label" for="velocity">Velocity</label>
             <input
               class="slider"
               id="velocity"

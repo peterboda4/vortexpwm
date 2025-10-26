@@ -4,18 +4,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-8-voice polyphonic PWM (Pulse Width Modulation) synthesizer running in the browser using Web Audio API's AudioWorklet technology. This is a pure JavaScript implementation with no build step - all files run directly in the browser.
+8-voice polyphonic PWM (Pulse Width Modulation) synthesizer running in the browser using Web Audio API's AudioWorklet technology. This is a pure JavaScript implementation using ES modules that can be run directly in development or built into a single-file monolithic distribution for production.
 
 ## Development Commands
+
+### Testing
+
+- `npm test` - Run test suite using Node.js built-in test runner
+- `npm run test:watch` - Run tests in watch mode
 
 ### Formatting
 
 - `npm run format` - Format all files with Prettier
 - `npm run format:check` - Check formatting without making changes
 
+### Building
+
+- `npm run build` - Create single-file production build in `dist/index.html`
+  - Automatically collects all `.js` modules from the codebase (no manual maintenance)
+  - Inlines CSS and embeds all modules as base64 data URLs
+  - Creates Blob URLs for AudioWorklet processors
+  - Results in a fully self-contained HTML file (~260KB)
+
 ### Running
 
-Open [index.html](index.html) directly in a browser. Must be served from:
+**Development**: Open [index.html](index.html) directly in a browser from a local web server.
+
+**Production**: Open `dist/index.html` after running `npm run build`.
+
+Both require serving from:
 
 - `https://` (secure context), OR
 - `localhost` (local development)
@@ -96,17 +113,19 @@ Each slot has: destination (0-4) and amount (-1 to +1).
 - [worklet/synth-processor.js](worklet/synth-processor.js) - Main DSP implementation with polyphonic voices, filters, envelopes
 - [audio/synth.js](audio/synth.js) - AudioWorklet controller and API
 - [midi/midi-input.js](midi/midi-input.js) - Web MIDI API wrapper
-- [index.html](index.html) - Single-page application with inline CSS and parameter controls
+- [index.html](index.html) - Single-page application with parameter controls
 - [utils/music.js](utils/music.js) - Music theory utilities (MIDI to frequency conversion, note names)
+- [build.js](build.js) - Production build script that creates a single-file distribution
+- [tests/](tests/) - Test suite for utility functions
 
 ## Important Constraints
 
-1. **No build step**: All JavaScript is ES modules loaded directly by the browser
+1. **Development vs Production**: Development uses ES modules loaded directly; production uses a monolithic build
 2. **Secure context required**: AudioWorklet and Web MIDI only work over HTTPS or localhost
 3. **Single file worklet**: [worklet/synth-processor.js](worklet/synth-processor.js) must be self-contained (no imports) due to AudioWorklet scope limitations
 4. **Voice limit**: Hard-coded to 8 voices for performance and CPU headroom
 5. **Sample rate**: Uses browser's default (typically 44.1kHz), not configurable
-6. **No bundler**: File paths are relative and must remain intact
+6. **Build process**: Automatic module collection - no need to manually maintain module lists when adding new files
 
 ## Parameter Ranges
 
