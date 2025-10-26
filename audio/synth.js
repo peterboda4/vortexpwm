@@ -1,4 +1,6 @@
 // audio/synth.js - sets up AudioContext, AudioWorklet, and exposes a simple API
+import { logger } from '../utils/logger.js';
+
 export class Synth {
   constructor() {
     this.ctx = null;
@@ -11,11 +13,16 @@ export class Synth {
 
   async init() {
     if (!this.ctx) {
+      logger.init('Initializing AudioContext with interactive latency hint');
       this.ctx = new (window.AudioContext || window.webkitAudioContext)({
         latencyHint: 'interactive',
       });
+      logger.info(
+        `AudioContext created: sampleRate=${this.ctx.sampleRate}Hz, state=${this.ctx.state}`
+      );
     }
     // Load worklet
+    logger.debug('Loading AudioWorklet processor: synth-processor.js');
     await this.ctx.audioWorklet.addModule('./worklet/synth-processor.js');
 
     this.node = new AudioWorkletNode(this.ctx, 'mono-pwm-synth', {
@@ -75,22 +82,27 @@ export class Synth {
     // This will be disconnected if FX chain is successfully initialized
     this.node.connect(this.ctx.destination);
     this.state.started = false;
+    logger.info('Synth initialized successfully (fallback connection active)');
     return this.state;
   }
 
   async initFX() {
+    logger.debug('Initializing FX chain');
     const { FXController } = await import('../fx/fx-controller.js');
     this.fxController = new FXController();
     // Disconnect fallback connection before inserting FX chain
     this.node.disconnect();
     await this.fxController.init(this.ctx, this.node);
+    logger.info('FX chain initialized and connected');
     return this.fxController;
   }
 
   async start() {
     if (this.ctx && this.ctx.state !== 'running') {
+      logger.debug('Resuming AudioContext');
       await this.ctx.resume();
       this.state.started = true;
+      logger.info('AudioContext started (state: running)');
     }
   }
 
