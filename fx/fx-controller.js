@@ -14,17 +14,32 @@ export class FXController {
   }
 
   async loadMetadata() {
-    const { HardClipEffect } = await import('./effects/hardclip.js');
-    const { PhaserEffect } = await import('./effects/phaser.js');
-    const { BitCrusherEffect } = await import('./effects/bitcrusher.js');
-    const { ChorusEffect } = await import('./effects/chorus.js');
-    const { DelayEffect } = await import('./effects/delay.js');
-    const { ReverbEffect } = await import('./effects/reverb.js');
-    const { FlangerEffect } = await import('./effects/flanger.js');
-    const { TremoloEffect } = await import('./effects/tremolo.js');
-    const { AutoWahEffect } = await import('./effects/autowah.js');
-    const { FreqShifterEffect } = await import('./effects/freqshifter.js');
-    const { PitchShifterEffect } = await import('./effects/pitchshifter.js');
+    // Load all effect modules in parallel for faster startup
+    const [
+      { HardClipEffect },
+      { PhaserEffect },
+      { BitCrusherEffect },
+      { ChorusEffect },
+      { DelayEffect },
+      { ReverbEffect },
+      { FlangerEffect },
+      { TremoloEffect },
+      { AutoWahEffect },
+      { FreqShifterEffect },
+      { PitchShifterEffect },
+    ] = await Promise.all([
+      import('./effects/hardclip.js'),
+      import('./effects/phaser.js'),
+      import('./effects/bitcrusher.js'),
+      import('./effects/chorus.js'),
+      import('./effects/delay.js'),
+      import('./effects/reverb.js'),
+      import('./effects/flanger.js'),
+      import('./effects/tremolo.js'),
+      import('./effects/autowah.js'),
+      import('./effects/freqshifter.js'),
+      import('./effects/pitchshifter.js'),
+    ]);
 
     this.effectsMetadata.set('hardclip', HardClipEffect.getMetadata());
     this.effectsMetadata.set('phaser', PhaserEffect.getMetadata());
