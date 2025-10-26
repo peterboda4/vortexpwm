@@ -32,7 +32,7 @@
 ### Control
 
 - **MIDI Input**: External MIDI controller support
-- **On-Screen Keyboard**: 2-octave virtual keyboard
+- **On-Screen Keyboard**: 5-octave virtual keyboard
 - **Aftertouch**: 4-slot modulation matrix
 
 ### Aftertouch Destinations
@@ -68,6 +68,37 @@ This generates `dist/index.html` - a standalone file with:
 - Full MIDI, keyboard, and FX chain support
 
 The generated file can be opened directly in any browser (requires localhost or HTTPS).
+
+### FTP Deployment
+
+**IMPORTANT:** This synthesizer requires a **secure context** (HTTPS or localhost) to function. AudioWorklet API is not available over plain HTTP or file:// protocol.
+
+To deploy on an external FTP server:
+
+1. Build the distribution:
+   ```bash
+   npm run build
+   ```
+
+2. Upload `dist/index.html` to your web server via FTP
+
+3. **Ensure your server serves the file over HTTPS** (required for AudioWorklet)
+   - HTTP will NOT work
+   - file:// will NOT work
+   - Only HTTPS or localhost are supported
+
+4. If you see "Initialization Failed" error:
+   - Check browser console for secure context warning
+   - Verify the URL starts with `https://` or `http://localhost`
+   - Consider using GitHub Pages, Netlify, or Vercel (all provide free HTTPS)
+
+### File Size
+
+The built `dist/index.html` is approximately **273 KB** and contains:
+- Complete synthesizer engine
+- 11 audio effects (Hard Clip, Phaser, Bit Crusher, Chorus, Delay, Reverb, Flanger, Tremolo, Auto Wah, Freq Shifter, Pitch Shifter)
+- All UI components
+- No external dependencies
 
 ## Technical
 
