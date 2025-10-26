@@ -71,8 +71,9 @@ export class Synth {
       },
     });
 
-    // Don't connect directly to destination - FX chain will be inserted
-    // this.node.connect(this.ctx.destination);
+    // Connect directly to destination as fallback
+    // This will be disconnected if FX chain is successfully initialized
+    this.node.connect(this.ctx.destination);
     this.state.started = false;
     return this.state;
   }
@@ -80,6 +81,8 @@ export class Synth {
   async initFX() {
     const { FXController } = await import('../fx/fx-controller.js');
     this.fxController = new FXController();
+    // Disconnect fallback connection before inserting FX chain
+    this.node.disconnect();
     await this.fxController.init(this.ctx, this.node);
     return this.fxController;
   }

@@ -41,6 +41,8 @@ async function initApp() {
       console.log('FX Chain initialized');
     } catch (error) {
       console.error('FX initialization failed:', error);
+      // Reconnect synth directly to destination as fallback
+      synth.node.connect(synth.ctx.destination);
       showError(
         'Effects Chain Error',
         'Failed to initialize audio effects. The synthesizer will work but effects will be unavailable. Please refresh the page to try again.'
