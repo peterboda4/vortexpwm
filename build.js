@@ -267,6 +267,13 @@ const mainJsDataUrl = moduleMap.get(mainJsPath);
 
 // Create worklet setup code
 const workletSetup = `
+// Check for secure context (required for AudioWorklet)
+if (!window.isSecureContext) {
+  console.error('[Build] ERROR: Not in secure context. AudioWorklet requires HTTPS or localhost.');
+  console.error('[Build] Current location:', window.location.href);
+  alert('This synthesizer requires HTTPS or localhost to function. Please access via a web server.');
+}
+
 // Create Blob URLs for AudioWorklet processors
 const synthProcessorCode = \`${workletSynthProcessor.replace(/[`\\$]/g, '\\$&')}\`;
 const fxChainProcessorCode = \`${workletFxChainProcessor.replace(/[`\\$]/g, '\\$&')}\`;
