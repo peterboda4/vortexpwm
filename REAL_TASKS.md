@@ -43,6 +43,7 @@
 **Výstup:** Jedna jasne označená produkčná verzia workletu ✅ **HOTOVO**
 
 **Archivované súbory:**
+
 - `worklet/archive/synth-processor-poly.js` (450 riadkov)
 - `worklet/archive/synth-processor-refactored.js` (1350 riadkov)
 - `worklet/archive/synth-processor.js.bak` (1440 riadkov)
@@ -77,6 +78,7 @@
 **Výstup:** Funkčný browser testing framework s prvými AudioWorklet testami ⚠️ **75% HOTOVO**
 
 **Poznámky:**
+
 - Playwright je nainštalovaný a nakonfigurovaný
 - Vytvorených 11 testov v `tests/browser/`
 - Custom test server v `tests/test-server.js`
@@ -112,6 +114,7 @@
 **Výstup:** Test suite s 80%+ coverage pre audio/synth.js ✅ **HOTOVO** (86% pass rate)
 
 **Výsledky:**
+
 - Vytvorených 29 testov v `tests/audio-synth.test.js`
 - **25/29 testov passing (86% success rate)** ✅
 - Mock framework v `tests/mocks/audio-context-mock.js`
@@ -290,6 +293,7 @@
 ### Celkový progress (2025-10-27)
 
 **P0 Úlohy (kritické):**
+
 - ✅ **WORKLET-001**: Konsolidovať worklet verzie - **100% HOTOVO**
 - ⚠️ **TEST-001**: Implementovať AudioWorklet testing - **75% HOTOVO** (Playwright setup done, tests need debugging)
 - ✅ **AUDIO-001**: Rozšíriť test coverage pre audio/ - **86% HOTOVO** (25/29 testov passing)
@@ -307,6 +311,7 @@
 - `dist/`: 90% → **90%** (no change)
 
 **Celková štatistika:**
+
 - **Nové testy**: +40 testov (11 Playwright browser testov + 29 audio unit testov)
 - **Test pass rate**: 81 existujúcich testov (100%) + 25/29 nových testov (86%) = **106/110 total (96%)**
 - **Nové súbory**: 5 (mock framework, test server, browser tests, audio tests)

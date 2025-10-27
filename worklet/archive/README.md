@@ -5,17 +5,20 @@ This folder contains historical versions of the synth processor that are no long
 ## Files
 
 ### synth-processor.js.bak
+
 - Backup copy of an earlier production version
 - 1440 lines
 - Archived: 2025-10-27
 
 ### synth-processor-poly.js
+
 - Earlier polyphonic implementation
 - 450 lines
 - Simpler architecture, fewer features
 - Archived: 2025-10-27
 
 ### synth-processor-refactored.js
+
 - Experimental refactored version with modular classes
 - 1350 lines
 - Features:
@@ -30,6 +33,7 @@ This folder contains historical versions of the synth processor that are no long
 The current production version is **worklet/synth-processor.js** (1515 lines).
 
 Key features:
+
 - 8-voice polyphony
 - IIR Filter class (24dB resonant lowpass)
 - PolyBLEP anti-aliasing

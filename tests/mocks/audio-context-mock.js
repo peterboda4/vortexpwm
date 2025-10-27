@@ -83,7 +83,9 @@ export class MockAudioWorkletNode {
 
     // Initialize parameters based on options
     if (options.parameterData) {
-      for (const [paramName, paramConfig] of Object.entries(options.parameterData)) {
+      for (const [paramName, paramConfig] of Object.entries(
+        options.parameterData
+      )) {
         this.parameters.set(
           paramName,
           new MockAudioParam(paramConfig.defaultValue || 0)

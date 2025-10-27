@@ -13,7 +13,9 @@ test.describe('AudioWorklet Synth Initialization', () => {
     await expect(page.locator('#controls')).toBeVisible();
   });
 
-  test('should initialize AudioContext when Start Audio is clicked', async ({ page }) => {
+  test('should initialize AudioContext when Start Audio is clicked', async ({
+    page,
+  }) => {
     await page.goto('/');
 
     // Click the Start Audio button
@@ -46,8 +48,8 @@ test.describe('AudioWorklet Synth Initialization', () => {
     await page.waitForTimeout(2000);
 
     // Check that AudioWorklet was loaded
-    const hasWorkletMessage = consoleMessages.some((msg) =>
-      msg.includes('AudioWorklet') || msg.includes('synth-processor')
+    const hasWorkletMessage = consoleMessages.some(
+      (msg) => msg.includes('AudioWorklet') || msg.includes('synth-processor')
     );
 
     // This may not always be logged, so we just check that no errors occurred
@@ -99,7 +101,9 @@ test.describe('AudioWorklet Synth Initialization', () => {
     await page.waitForTimeout(1000);
 
     // Check for voice count display element
-    const voiceCountElement = page.locator('#voiceCount, [data-testid="voice-count"]');
+    const voiceCountElement = page.locator(
+      '#voiceCount, [data-testid="voice-count"]'
+    );
 
     // Either the element exists or we just verify no errors
     // (since voice count UI might be dynamically created)

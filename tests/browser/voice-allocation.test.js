@@ -79,7 +79,9 @@ test.describe('Voice Allocation', () => {
     expect(errors).toHaveLength(0);
   });
 
-  test('should handle voice stealing when polyphony limit is reached', async ({ page }) => {
+  test('should handle voice stealing when polyphony limit is reached', async ({
+    page,
+  }) => {
     const errors = [];
     page.on('pageerror', (error) => {
       errors.push(error.message);
@@ -166,7 +168,9 @@ test.describe('Voice Allocation', () => {
     await page.waitForTimeout(500);
 
     // The system should handle invalid notes gracefully without crashing
-    expect(errors.filter((e) => e.includes('crash') || e.includes('undefined'))).toHaveLength(0);
+    expect(
+      errors.filter((e) => e.includes('crash') || e.includes('undefined'))
+    ).toHaveLength(0);
   });
 
   test('should handle rapid note retriggering', async ({ page }) => {
