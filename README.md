@@ -21,6 +21,7 @@
 ### Development
 
 1. Serve the project from a local web server (required for AudioWorklet):
+
    ```bash
    # Using Python
    python -m http.server 8000
@@ -95,6 +96,7 @@ The project has comprehensive test coverage:
 - **~94% coverage** for testable code
 
 Test suites cover:
+
 - DSP mathematical functions
 - Music theory utilities
 - Logger functionality
@@ -109,6 +111,7 @@ See [tests/TEST_COVERAGE.md](tests/TEST_COVERAGE.md) for detailed coverage repor
 - Web MIDI API support (optional, for MIDI controllers)
 
 Tested on:
+
 - Chrome/Edge 90+
 - Firefox 90+
 - Safari 14.1+
