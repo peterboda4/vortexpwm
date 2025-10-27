@@ -22,11 +22,16 @@ test.describe('E2E: UI Interactions', () => {
 
     // Move slider
     await masterSlider.fill('0.8');
+    await page.waitForTimeout(100);
 
     // Value display should update
     const newValue = await masterValue.textContent();
     expect(newValue).not.toBe(initialValue);
-    expect(parseFloat(newValue)).toBeCloseTo(0.8, 1);
+
+    // Parse and check value (handle different formats like "0.800" or "0.8")
+    const parsedValue = parseFloat(newValue);
+    expect(parsedValue).toBeGreaterThanOrEqual(0.75);
+    expect(parsedValue).toBeLessThanOrEqual(0.85);
   });
 
   test('should update oscillator tuning when coarse slider changes', async ({
