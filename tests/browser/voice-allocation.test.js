@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Voice Allocation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.locator('#startButton').click();
+    await page.locator('#start').click();
     await page.waitForTimeout(1500); // Wait for AudioContext initialization
   });
 

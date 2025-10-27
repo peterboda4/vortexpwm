@@ -117,4 +117,168 @@ describe('Stereo Delay Effect', () => {
       }
     });
   });
+
+  describe('Audio Processing', () => {
+    it('should pass through audio when disabled', async () => {
+      const { DelayEffect } = await import('../../fx/effects/delay.js');
+      const sampleRate = 48000;
+      const effect = new DelayEffect(sampleRate, 'delay-test');
+      effect.enabled = false;
+
+      const inputL = 0.5;
+      const inputR = 0.75;
+      const [outputL, outputR] = effect.process(inputL, inputR);
+
+      assert.strictEqual(outputL, inputL);
+      assert.strictEqual(outputR, inputR);
+    });
+
+    it('should produce delayed output when enabled', async () => {
+      const { DelayEffect } = await import('../../fx/effects/delay.js');
+      const sampleRate = 48000;
+      const effect = new DelayEffect(sampleRate, 'delay-test');
+      effect.enabled = true;
+      effect.mix = 1.0; // 100% wet for testing
+      effect.feedback = 0;
+      const delayTime = 0.01; // ~480 samples at 48kHz
+      effect.delayTimeL = delayTime;
+      effect.delayTimeR = delayTime;
+
+      // Send impulse
+      effect.process(1.0, 1.0);
+
+      // Process through delay - need to account for writeIndex advancement
+      const delaySamples = Math.floor(delayTime * sampleRate);
+      let maxOutput = 0;
+
+      // Check outputs around the expected delay time
+      for (let i = 0; i < delaySamples + 10; i++) {
+        const [outL, outR] = effect.process(0, 0);
+        maxOutput = Math.max(maxOutput, outL, outR);
+      }
+
+      // Should have seen the delayed impulse
+      assert.ok(
+        maxOutput > 0.8,
+        `Should have delayed impulse (maxOutput: ${maxOutput})`
+      );
+    });
+
+    it('should mix dry and wet signals', async () => {
+      const { DelayEffect } = await import('../../fx/effects/delay.js');
+      const sampleRate = 48000;
+      const effect = new DelayEffect(sampleRate, 'delay-test');
+      effect.enabled = true;
+      effect.mix = 0.5; // 50/50 mix
+      effect.feedback = 0;
+
+      const inputL = 1.0;
+      const inputR = 1.0;
+      const [outputL, outputR] = effect.process(inputL, inputR);
+
+      // With no delay history, output should be mostly dry
+      assert.ok(outputL > 0.4 && outputL < 0.6, 'Should be ~50% dry');
+      assert.ok(outputR > 0.4 && outputR < 0.6, 'Should be ~50% dry');
+    });
+
+    it('should apply feedback correctly', async () => {
+      const { DelayEffect } = await import('../../fx/effects/delay.js');
+      const sampleRate = 48000;
+      const effect = new DelayEffect(sampleRate, 'delay-test');
+      effect.enabled = true;
+      effect.mix = 1.0; // 100% wet
+      effect.feedback = 0.5;
+      const delayTime = 0.01; // ~480 samples
+      effect.delayTimeL = delayTime;
+      effect.delayTimeR = delayTime;
+
+      const delaySamples = Math.floor(delayTime * sampleRate);
+
+      // Send impulse
+      effect.process(1.0, 1.0);
+
+      // Find first echo
+      let maxFirst = 0;
+      for (let i = 0; i < delaySamples + 10; i++) {
+        const [outL] = effect.process(0, 0);
+        maxFirst = Math.max(maxFirst, outL);
+      }
+
+      assert.ok(maxFirst > 0.5, `First echo should be present (${maxFirst})`);
+
+      // Continue processing to find second echo
+      let maxSecond = 0;
+      for (let i = 0; i < delaySamples + 10; i++) {
+        const [outL] = effect.process(0, 0);
+        maxSecond = Math.max(maxSecond, outL);
+      }
+
+      // Second echo should be quieter due to feedback
+      assert.ok(
+        maxSecond > 0.1 && maxSecond < maxFirst * 0.7,
+        `Second echo should be quieter (first: ${maxFirst}, second: ${maxSecond})`
+      );
+    });
+
+    it('should reset buffer when reset() is called', async () => {
+      const { DelayEffect } = await import('../../fx/effects/delay.js');
+      const sampleRate = 48000;
+      const effect = new DelayEffect(sampleRate, 'delay-test');
+      effect.enabled = true;
+
+      // Fill buffer with data
+      for (let i = 0; i < 100; i++) {
+        effect.process(1.0, 1.0);
+      }
+
+      // Reset
+      effect.reset();
+
+      // Process silence and check output is clean
+      const [outputL, outputR] = effect.process(0, 0);
+      assert.strictEqual(
+        outputL,
+        0,
+        'Left channel should be silent after reset'
+      );
+      assert.strictEqual(
+        outputR,
+        0,
+        'Right channel should be silent after reset'
+      );
+    });
+
+    it('should handle parameter changes', async () => {
+      const { DelayEffect } = await import('../../fx/effects/delay.js');
+      const sampleRate = 48000;
+      const effect = new DelayEffect(sampleRate, 'delay-test');
+
+      effect.onParameterChange('delayTimeL', 0.5);
+      assert.strictEqual(effect.delayTimeL, 0.5);
+
+      effect.onParameterChange('feedback', 0.7);
+      assert.strictEqual(effect.feedback, 0.7);
+
+      effect.onParameterChange('mix', 0.8);
+      assert.strictEqual(effect.mix, 0.8);
+    });
+
+    it('should clamp parameters to valid ranges', async () => {
+      const { DelayEffect } = await import('../../fx/effects/delay.js');
+      const sampleRate = 48000;
+      const effect = new DelayEffect(sampleRate, 'delay-test');
+
+      effect.onParameterChange('delayTimeL', 10); // Above max (2)
+      assert.strictEqual(effect.delayTimeL, 2);
+
+      effect.onParameterChange('delayTimeL', -1); // Below min (0.001)
+      assert.strictEqual(effect.delayTimeL, 0.001);
+
+      effect.onParameterChange('feedback', 1.5); // Above max (0.95)
+      assert.strictEqual(effect.feedback, 0.95);
+
+      effect.onParameterChange('mix', -0.5); // Below min (0)
+      assert.strictEqual(effect.mix, 0);
+    });
+  });
 });
