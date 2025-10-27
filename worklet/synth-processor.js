@@ -12,7 +12,11 @@ const MAX_VOICES = 8;
 // AUDIO PROCESSING
 // =============================================================================
 
-// IIR Filter class (24dB resonant lowpass)
+/**
+ * IIR Filter implementation with cascaded biquad sections
+ * Supports both 24dB lowpass (2 biquads) and 18dB highpass (3 biquads)
+ * Uses coefficient caching to avoid redundant recalculation
+ */
 class IIRFilter {
   constructor() {
     this.reset();
@@ -170,6 +174,520 @@ class IIRFilter {
     }
 
     return y2;
+  }
+}
+
+/**
+ * ADSR Envelope Generator
+ * Implements exponential attack, decay, sustain, and release stages
+ * Uses 1 - exp(-1/(time*sampleRate)) coefficient for natural-sounding curves
+ */
+class Envelope {
+  constructor() {
+    this.value = 0.0;
+    this.state = 'idle'; // 'idle', 'attack', 'decay', 'sustain', 'release'
+    this.sustainLevel = 0.7;
+  }
+
+  /**
+   * Trigger attack stage
+   */
+  trigger() {
+    this.state = 'attack';
+  }
+
+  /**
+   * Release the envelope
+   */
+  release() {
+    this.state = 'release';
+  }
+
+  /**
+   * Reset to initial state
+   */
+  reset() {
+    this.value = 0.0;
+    this.state = 'idle';
+    this.sustainLevel = 0.7;
+  }
+
+  /**
+   * Process one sample of the envelope
+   * @param {number} attack - Attack time in seconds
+   * @param {number} decay - Decay time in seconds
+   * @param {number} sustain - Sustain level (0-1)
+   * @param {number} release - Release time in seconds
+   * @param {number} sampleRate - Sample rate in Hz
+   * @param {boolean} gate - Gate state (true = held, false = released)
+   * @returns {number} Current envelope value (0-1)
+   */
+  process(attack, decay, sustain, release, sampleRate, gate) {
+    const envFloor = 0.0001;
+
+    // Attack
+    if (this.state === 'attack') {
+      if (attack <= 0) {
+        this.value = 1.0;
+        this.state = 'decay';
+      } else {
+        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
+        const attackCoeff = 1.0 - Math.exp(-1.0 / ((attack / 4.6) * sampleRate));
+        this.value += (1.0 - this.value) * attackCoeff;
+        if (this.value >= 0.9999) {
+          this.value = 1.0;
+          this.state = 'decay';
+        }
+      }
+    }
+
+    // Decay
+    if (this.state === 'decay') {
+      this.sustainLevel = Math.max(envFloor, sustain);
+      if (decay <= 0) {
+        this.value = this.sustainLevel;
+        this.state = gate ? 'sustain' : 'release';
+      } else {
+        const decayCoeff = 1.0 - Math.exp(-1.0 / ((decay / 4.6) * sampleRate));
+        this.value += (this.sustainLevel - this.value) * decayCoeff;
+        if (Math.abs(this.value - this.sustainLevel) < 0.0001) {
+          this.value = this.sustainLevel;
+          this.state = gate ? 'sustain' : 'release';
+        }
+      }
+    }
+
+    // Sustain
+    if (this.state === 'sustain') {
+      this.sustainLevel = Math.max(envFloor, sustain);
+      this.value = this.sustainLevel;
+      if (!gate) this.state = 'release';
+    }
+
+    // Release
+    if (this.state === 'release') {
+      if (release <= 0) {
+        this.value = 0.0;
+        this.state = 'idle';
+        return 0.0;
+      } else {
+        const releaseCoeff = 1.0 - Math.exp(-1.0 / ((release / 4.6) * sampleRate));
+        this.value += (envFloor - this.value) * releaseCoeff;
+        if (this.value <= envFloor * 1.5) {
+          this.value = 0.0;
+          this.state = 'idle';
+          return 0.0;
+        }
+      }
+    }
+
+    return this.value;
+  }
+
+  /**
+   * Check if envelope is finished (idle state)
+   */
+  isIdle() {
+    return this.state === 'idle';
+  }
+}
+
+/**
+ * Oscillator with PWM, PolyBLEP anti-aliasing, and multiple waveforms
+ * Supports pulse wave (Osc1) and saw/triangle/sine/square (Osc2)
+ */
+class Oscillator {
+  constructor() {
+    this.phase = 0.0;
+    this.pwmLfoPhase = Math.random();
+  }
+
+  /**
+   * Reset oscillator state
+   */
+  reset() {
+    this.phase = 0.0;
+    this.pwmLfoPhase = Math.random();
+  }
+
+  /**
+   * PolyBLEP anti-aliasing residual for bandlimited synthesis
+   * @param {number} t - Phase position relative to discontinuity (normalized to ±1)
+   * @param {number} dt - Phase increment per sample
+   * @returns {number} Correction value to apply
+   */
+  polyBLEP(t, dt) {
+    // If t is near a discontinuity (within one sample), apply correction
+    if (t < dt) {
+      // Discontinuity at phase = 0
+      t = t / dt;
+      return t + t - t * t - 1.0;
+    } else if (t > 1.0 - dt) {
+      // Discontinuity at phase = 1
+      t = (t - 1.0) / dt;
+      return t * t + t + t + 1.0;
+    }
+    return 0.0;
+  }
+
+  /**
+   * Generate PWM pulse wave with PolyBLEP anti-aliasing
+   * @param {number} frequency - Frequency in Hz
+   * @param {number} pulseWidth - Pulse width (0.01-0.99)
+   * @param {number} pwmRate - PWM LFO rate in Hz
+   * @param {number} pwmDepth - PWM depth (0-1)
+   * @param {number} sampleRate - Sample rate in Hz
+   * @returns {number} Sample value (-1 to 1)
+   */
+  processPWM(frequency, pulseWidth, pwmRate, pwmDepth, sampleRate) {
+    const phInc = frequency / sampleRate;
+    this.phase += phInc;
+    this.phase %= 1.0;
+
+    // PWM LFO
+    this.pwmLfoPhase += pwmRate / sampleRate;
+    this.pwmLfoPhase %= 1.0;
+
+    const pwmMod = Math.sin(2 * Math.PI * this.pwmLfoPhase);
+    let duty = pulseWidth + pwmMod * (0.45 * pwmDepth);
+    duty = Math.max(0.01, Math.min(0.99, duty));
+
+    // Bandlimited pulse wave with PolyBLEP
+    let output = this.phase < duty ? 1.0 : -1.0;
+    output -= this.polyBLEP(this.phase, phInc);
+    output += this.polyBLEP((this.phase - duty + 1.0) % 1.0, phInc);
+
+    return output;
+  }
+
+  /**
+   * Generate waveforms (saw, triangle, sine, square)
+   * @param {number} frequency - Frequency in Hz
+   * @param {number} waveform - Waveform type (0=Saw, 1=Triangle, 2=Sine, 3=Square)
+   * @param {number} sampleRate - Sample rate in Hz
+   * @returns {number} Sample value (-1 to 1)
+   */
+  processWaveform(frequency, waveform, sampleRate) {
+    const phInc = frequency / sampleRate;
+    this.phase += phInc;
+    this.phase %= 1.0;
+
+    switch (waveform) {
+      case 0: // Saw
+        let saw = 2.0 * this.phase - 1.0;
+        saw -= this.polyBLEP(this.phase, phInc);
+        return saw;
+
+      case 1: // Triangle
+        return this.phase < 0.5 ? 4.0 * this.phase - 1.0 : 3.0 - 4.0 * this.phase;
+
+      case 2: // Sine
+        return Math.sin(2 * Math.PI * this.phase);
+
+      case 3: // Square
+        let square = this.phase < 0.5 ? 1.0 : -1.0;
+        square -= this.polyBLEP(this.phase, phInc);
+        square += this.polyBLEP((this.phase - 0.5 + 1.0) % 1.0, phInc);
+        return square;
+
+      default:
+        return 0.0;
+    }
+  }
+}
+
+/**
+ * Voice state container
+ * Holds all state for a single polyphonic voice including oscillators, envelopes, and filters
+ */
+class Voice {
+  constructor() {
+    // Oscillators
+    this.osc1 = new Oscillator();
+    this.subOsc1 = new Oscillator();
+    this.osc2 = new Oscillator();
+    this.subOsc2 = new Oscillator();
+    this.panLfo = new Oscillator();
+
+    // Envelopes
+    this.ampEnv = new Envelope();
+    this.filterEnv = new Envelope();
+
+    // Filters
+    this.lpf = new IIRFilter();
+    this.hpf = new IIRFilter();
+
+    // Voice state
+    this.midi = -1;
+    this.velocity = 1.0;
+    this.gate = false;
+    this.active = false;
+    this.activationTime = 0;
+  }
+
+  /**
+   * Reset voice to initial state
+   */
+  reset() {
+    // Reset oscillators
+    this.osc1.reset();
+    this.subOsc1.reset();
+    this.osc2.reset();
+    this.subOsc2.reset();
+    this.panLfo.reset();
+
+    // Reset envelopes
+    this.ampEnv.reset();
+    this.filterEnv.reset();
+
+    // Reset filters
+    this.lpf.reset();
+    this.hpf.reset();
+
+    // Reset state
+    this.midi = -1;
+    this.velocity = 1.0;
+    this.gate = false;
+    this.active = false;
+    this.activationTime = 0;
+  }
+
+  /**
+   * Trigger voice with new note
+   * @param {number} midiNote - MIDI note number (0-127)
+   * @param {number} velocity - Velocity (0-1)
+   * @param {number} currentFrame - Current frame number
+   */
+  trigger(midiNote, velocity, currentFrame) {
+    this.midi = midiNote;
+    this.velocity = velocity;
+    this.gate = true;
+    this.active = true;
+    this.activationTime = currentFrame;
+    this.ampEnv.trigger();
+    this.filterEnv.trigger();
+  }
+
+  /**
+   * Release voice (note off)
+   */
+  release() {
+    this.gate = false;
+    this.ampEnv.release();
+    this.filterEnv.release();
+  }
+
+  /**
+   * Check if voice is available for stealing
+   */
+  isStealable() {
+    return !this.active || this.ampEnv.state === 'release' || this.ampEnv.isIdle();
+  }
+}
+
+/**
+ * Voice Allocator
+ * Manages polyphonic voice allocation with intelligent voice stealing
+ */
+class VoiceAllocator {
+  constructor(maxVoices) {
+    this.maxVoices = maxVoices;
+    this.voices = [];
+    this.noteToVoice = new Map(); // MIDI note -> voice index
+
+    // Initialize voice pool
+    for (let i = 0; i < maxVoices; i++) {
+      this.voices.push(new Voice());
+    }
+  }
+
+  /**
+   * Allocate a voice for a new note
+   * @param {number} midiNote - MIDI note number
+   * @returns {number} Voice index
+   */
+  allocate(midiNote) {
+    // First try to find a free voice
+    for (let i = 0; i < this.maxVoices; i++) {
+      if (!this.voices[i].active) {
+        return i;
+      }
+    }
+
+    // No free voices, steal the oldest (first active voice in release or idle)
+    for (let i = 0; i < this.maxVoices; i++) {
+      if (this.voices[i].isStealable()) {
+        // Remove old note mapping
+        if (this.voices[i].midi >= 0) {
+          this.noteToVoice.delete(this.voices[i].midi);
+        }
+        return i;
+      }
+    }
+
+    // All voices active, steal voice 0
+    if (this.voices[0].midi >= 0) {
+      this.noteToVoice.delete(this.voices[0].midi);
+    }
+    return 0;
+  }
+
+  /**
+   * Trigger a note
+   * @param {number} midiNote - MIDI note number
+   * @param {number} velocity - Velocity (0-1)
+   * @param {number} currentFrame - Current frame number
+   */
+  noteOn(midiNote, velocity, currentFrame) {
+    // If note is already playing, retrigger it
+    if (this.noteToVoice.has(midiNote)) {
+      const voiceIndex = this.noteToVoice.get(midiNote);
+      const voice = this.voices[voiceIndex];
+
+      // Hard retrigger: reset oscillator phases
+      voice.osc1.phase = 0.0;
+      voice.osc2.phase = 0.0;
+      voice.subOsc1.phase = 0.0;
+      voice.subOsc2.phase = 0.0;
+
+      // Reset filters
+      voice.lpf.reset();
+      voice.hpf.reset();
+
+      // Trigger with new velocity
+      voice.trigger(midiNote, velocity, currentFrame);
+      return;
+    }
+
+    // Allocate new voice
+    const voiceIndex = this.allocate(midiNote);
+    const voice = this.voices[voiceIndex];
+
+    // Reset voice completely if it was previously used (voice stealing)
+    if (voice.active || !voice.ampEnv.isIdle()) {
+      voice.reset();
+    }
+
+    voice.trigger(midiNote, velocity, currentFrame);
+    this.noteToVoice.set(midiNote, voiceIndex);
+  }
+
+  /**
+   * Release a note
+   * @param {number} midiNote - MIDI note number
+   */
+  noteOff(midiNote) {
+    if (this.noteToVoice.has(midiNote)) {
+      const voiceIndex = this.noteToVoice.get(midiNote);
+      this.voices[voiceIndex].release();
+    }
+  }
+
+  /**
+   * Release all notes (MIDI panic)
+   */
+  allNotesOff() {
+    for (let i = 0; i < this.maxVoices; i++) {
+      if (this.voices[i].active) {
+        this.voices[i].release();
+      }
+    }
+  }
+
+  /**
+   * Clean up finished voices
+   * Removes voices from note mapping when envelope is idle
+   */
+  cleanup() {
+    for (let i = 0; i < this.maxVoices; i++) {
+      const voice = this.voices[i];
+      if (voice.active && voice.ampEnv.isIdle()) {
+        if (voice.midi >= 0) {
+          this.noteToVoice.delete(voice.midi);
+        }
+        voice.reset();
+      }
+    }
+  }
+
+  /**
+   * Count active voices
+   * @returns {number} Number of active voices
+   */
+  getActiveVoiceCount() {
+    let count = 0;
+    for (let i = 0; i < this.maxVoices; i++) {
+      if (this.voices[i].active) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Watchdog: detect and clean up stuck voices
+   * @param {number} currentFrame - Current frame number
+   * @param {number} maxFrames - Maximum frames a voice can be active
+   */
+  watchdog(currentFrame, maxFrames) {
+    for (let i = 0; i < this.maxVoices; i++) {
+      const voice = this.voices[i];
+      if (voice.active && currentFrame - voice.activationTime > maxFrames) {
+        // Force voice to idle state
+        if (voice.midi >= 0) {
+          this.noteToVoice.delete(voice.midi);
+        }
+        voice.reset();
+      }
+    }
+  }
+}
+
+/**
+ * Message Queue for thread-safe communication
+ * Queues messages from main thread to be processed in audio thread
+ */
+class MessageQueue {
+  constructor(maxSize = 256) {
+    this.queue = [];
+    this.maxSize = maxSize;
+  }
+
+  /**
+   * Push a message onto the queue
+   * @param {Object} message - Message object
+   * @returns {boolean} True if message was added, false if queue is full
+   */
+  push(message) {
+    if (this.queue.length < this.maxSize) {
+      this.queue.push(message);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Pop a message from the queue
+   * @returns {Object|null} Message object or null if queue is empty
+   */
+  pop() {
+    return this.queue.shift() || null;
+  }
+
+  /**
+   * Check if queue is empty
+   * @returns {boolean} True if queue is empty
+   */
+  isEmpty() {
+    return this.queue.length === 0;
+  }
+
+  /**
+   * Get queue size
+   * @returns {number} Number of messages in queue
+   */
+  size() {
+    return this.queue.length;
   }
 }
 
@@ -520,48 +1038,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     // Global white noise generator state (monophonic)
     this.noiseState = Math.random() * 4294967296; // 32-bit seed
 
-    // Voice pool
-    this.maxVoices = MAX_VOICES;
-    this.voices = [];
-    this.noteToVoice = new Map(); // midi note -> voice index
-
-    // Initialize voice pool
-    for (let i = 0; i < this.maxVoices; i++) {
-      this.voices.push({
-        // Oscillator 1 state
-        phase: 0.0,
-        pwmLfoPhase: Math.random(),
-        subPhase: Math.random(),
-        panLfoPhase: Math.random(),
-
-        // Oscillator 2 state
-        osc2Phase: Math.random(),
-        sub2Phase: Math.random(),
-
-        // Amp Envelope
-        env: 0.0,
-        envState: 'idle',
-        sustainLevel: 0.7,
-
-        // Filter Envelope
-        filterEnv: 0.0,
-        filterEnvState: 'idle',
-        filterSustainLevel: 0.7,
-
-        // Filters (LPF + HPF in series)
-        lpf: new IIRFilter(),
-        hpf: new IIRFilter(),
-
-        // Voice data
-        midi: -1,
-        velocity: 1.0,
-        gate: false,
-        active: false,
-
-        // Watchdog: track time since voice became active to detect stuck voices
-        activationTime: 0,
-      });
-    }
+    // Voice allocator with polyphonic voice management
+    this.voiceAllocator = new VoiceAllocator(MAX_VOICES);
 
     // Watchdog counter for periodic stuck voice detection
     this.watchdogCounter = 0;
@@ -574,8 +1052,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
 
     // Message queue for thread-safe voice state changes
     // Messages are queued in onmessage and processed in process() callback
-    this.messageQueue = [];
-    this.maxQueueSize = 256; // Prevent memory overflow
+    this.messageQueue = new MessageQueue(256);
 
     this.port.onmessage = (e) => {
       const msg = e.data;
@@ -602,13 +1079,11 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
           return;
         }
         // Add to queue if not full
-        if (this.messageQueue.length < this.maxQueueSize) {
-          this.messageQueue.push({
-            type: 'noteOn',
-            midi: msg.midi | 0,
-            velocity: Math.max(0, Math.min(1, +msg.velocity)),
-          });
-        } else {
+        if (!this.messageQueue.push({
+          type: 'noteOn',
+          midi: msg.midi | 0,
+          velocity: Math.max(0, Math.min(1, +msg.velocity)),
+        })) {
           console.warn('Message queue full, dropping noteOn message');
         }
       } else if (msg.type === 'noteOff') {
@@ -618,12 +1093,10 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
           return;
         }
         // Add to queue if not full
-        if (this.messageQueue.length < this.maxQueueSize) {
-          this.messageQueue.push({
-            type: 'noteOff',
-            midi: msg.midi | 0,
-          });
-        } else {
+        if (!this.messageQueue.push({
+          type: 'noteOff',
+          midi: msg.midi | 0,
+        })) {
           console.warn('Message queue full, dropping noteOff message');
         }
       } else if (msg.type === 'aftertouch') {
@@ -636,144 +1109,13 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         this.aftertouch = Math.max(0, Math.min(1, +msg.value / 127.0));
       } else if (msg.type === 'allNotesOff') {
         // Add to queue if not full
-        if (this.messageQueue.length < this.maxQueueSize) {
-          this.messageQueue.push({ type: 'allNotesOff' });
-        } else {
+        if (!this.messageQueue.push({ type: 'allNotesOff' })) {
           console.warn('Message queue full, dropping allNotesOff message');
         }
       } else {
         console.error('Unknown message type:', msg.type);
       }
     };
-  }
-
-  // Completely reset a voice to initial state
-  resetVoice(voice) {
-    // Reset oscillator phases
-    voice.phase = 0.0;
-    voice.pwmLfoPhase = Math.random();
-    voice.subPhase = Math.random();
-    voice.panLfoPhase = Math.random();
-    voice.osc2Phase = Math.random();
-    voice.sub2Phase = Math.random();
-
-    // Reset envelopes
-    voice.env = 0.0;
-    voice.envState = 'idle';
-    voice.sustainLevel = 0.7;
-    voice.filterEnv = 0.0;
-    voice.filterEnvState = 'idle';
-    voice.filterSustainLevel = 0.7;
-
-    // Reset filters completely
-    voice.lpf.reset();
-    voice.hpf.reset();
-
-    // Reset voice data
-    voice.midi = -1;
-    voice.velocity = 1.0;
-    voice.gate = false;
-    voice.active = false;
-    voice.activationTime = 0;
-  }
-
-  // Find a free voice or steal oldest voice
-  allocateVoice(midi) {
-    // First try to find a free voice
-    for (let i = 0; i < this.maxVoices; i++) {
-      if (!this.voices[i].active) {
-        return i;
-      }
-    }
-
-    // No free voices, steal the oldest (first active voice in release)
-    for (let i = 0; i < this.maxVoices; i++) {
-      if (
-        this.voices[i].envState === 'release' ||
-        this.voices[i].envState === 'idle'
-      ) {
-        // Remove old note mapping
-        if (this.voices[i].midi >= 0) {
-          this.noteToVoice.delete(this.voices[i].midi);
-        }
-        return i;
-      }
-    }
-
-    // All voices active, steal voice 0
-    if (this.voices[0].midi >= 0) {
-      this.noteToVoice.delete(this.voices[0].midi);
-    }
-    return 0;
-  }
-
-  noteOn(midi, velocity) {
-    // If note is already playing, retrigger it (hard retrigger: reset all state)
-    if (this.noteToVoice.has(midi)) {
-      const voiceIndex = this.noteToVoice.get(midi);
-      const voice = this.voices[voiceIndex];
-      voice.velocity = velocity;
-      voice.gate = true;
-      voice.envState = 'attack';
-      voice.filterEnvState = 'attack';
-      voice.activationTime = this.currentFrame;
-      // Reset phase accumulators for hard retrigger
-      voice.phase = 0.0;
-      voice.osc2Phase = 0.0;
-      voice.subPhase = 0.0;
-      voice.sub2Phase = 0.0;
-      // Reset filter state
-      voice.lpf.reset();
-      voice.hpf.reset();
-      return;
-    }
-
-    // Allocate new voice
-    const voiceIndex = this.allocateVoice(midi);
-    const voice = this.voices[voiceIndex];
-
-    // Reset voice completely if it was previously used (voice stealing)
-    if (voice.active || voice.envState !== 'idle') {
-      this.resetVoice(voice);
-    }
-
-    voice.midi = midi;
-    voice.velocity = velocity;
-    voice.gate = true;
-    voice.active = true;
-    voice.envState = 'attack';
-    voice.filterEnvState = 'attack';
-    voice.activationTime = this.currentFrame;
-
-    this.noteToVoice.set(midi, voiceIndex);
-  }
-
-  noteOff(midi) {
-    if (this.noteToVoice.has(midi)) {
-      const voiceIndex = this.noteToVoice.get(midi);
-      const voice = this.voices[voiceIndex];
-      voice.gate = false;
-      voice.envState = 'release';
-      voice.filterEnvState = 'release';
-    }
-  }
-
-  /**
-   * All Notes Off - MIDI panic function
-   * Immediately releases all active voices (puts them in release state)
-   * This is the standard MIDI CC 123 / CC 120 behavior
-   */
-  allNotesOff() {
-    for (let i = 0; i < this.maxVoices; i++) {
-      const voice = this.voices[i];
-      if (voice.active) {
-        voice.gate = false;
-        voice.envState = 'release';
-        voice.filterEnvState = 'release';
-      }
-    }
-    // Note: We don't clear noteToVoice map here because voices are still
-    // in release phase. They will be cleaned up naturally when env reaches 0.
   }
 
   midiToHz(m) {
@@ -1368,39 +1710,30 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     // Process queued messages BEFORE audio rendering
     // This ensures all voice state changes happen atomically
     // before we start reading voice data
-    while (this.messageQueue.length > 0) {
-      const msg = this.messageQueue.shift();
+    while (!this.messageQueue.isEmpty()) {
+      const msg = this.messageQueue.pop();
 
       if (msg.type === 'noteOn') {
-        this.noteOn(msg.midi, msg.velocity);
+        this.voiceAllocator.noteOn(msg.midi, msg.velocity, this.currentFrame);
       } else if (msg.type === 'noteOff') {
-        this.noteOff(msg.midi);
+        this.voiceAllocator.noteOff(msg.midi);
       } else if (msg.type === 'allNotesOff') {
-        this.allNotesOff();
+        this.voiceAllocator.allNotesOff();
       }
     }
 
     // Increment frame counter for voice timing
     this.currentFrame += L.length;
 
+    // Clean up finished voices
+    this.voiceAllocator.cleanup();
+
     // Watchdog: periodically check for stuck voices (max 10 seconds active)
     this.watchdogCounter += L.length;
     if (this.watchdogCounter >= this.watchdogInterval) {
       this.watchdogCounter = 0;
       const maxVoiceFrames = 10.0 * this.sampleRate; // 10 seconds in frames
-      for (let i = 0; i < this.maxVoices; i++) {
-        const voice = this.voices[i];
-        if (
-          voice.active &&
-          this.currentFrame - voice.activationTime > maxVoiceFrames
-        ) {
-          // Force voice to idle state and reset completely
-          if (voice.midi >= 0) {
-            this.noteToVoice.delete(voice.midi);
-          }
-          this.resetVoice(voice);
-        }
-      }
+      this.voiceAllocator.watchdog(this.currentFrame, maxVoiceFrames);
     }
 
     // Cache parameters
@@ -1458,8 +1791,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     }
 
     // Process each voice and mix
-    for (let voiceIndex = 0; voiceIndex < this.maxVoices; voiceIndex++) {
-      const voice = this.voices[voiceIndex];
+    for (let voiceIndex = 0; voiceIndex < this.voiceAllocator.maxVoices; voiceIndex++) {
+      const voice = this.voiceAllocator.voices[voiceIndex];
 
       for (let i = 0; i < L.length; i++) {
         const voiceOutput = this.processVoice(voice, params, i);
@@ -1489,13 +1822,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     if (this.voiceCountReportCounter >= this.voiceCountReportInterval) {
       this.voiceCountReportCounter = 0;
 
-      // Count active voices
-      let activeCount = 0;
-      for (let i = 0; i < this.maxVoices; i++) {
-        if (this.voices[i].active) {
-          activeCount++;
-        }
-      }
+      // Count active voices using VoiceAllocator
+      const activeCount = this.voiceAllocator.getActiveVoiceCount();
 
       // Only send update if count changed
       if (activeCount !== this.lastActiveVoiceCount) {
@@ -1503,7 +1831,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         this.port.postMessage({
           type: 'voiceCount',
           active: activeCount,
-          total: this.maxVoices,
+          total: this.voiceAllocator.maxVoices,
         });
       }
     }
