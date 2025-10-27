@@ -122,22 +122,35 @@ class PhaserEffect extends FXBase {
     this.maxFreq = 2000;
     this.feedbackL = 0;
     this.feedbackR = 0;
+
+    // Cache coefficient to avoid recalculating every sample
+    this.cachedA1 = 0;
+    this.samplesSinceUpdate = 0;
+    this.updateInterval = 32; // Update coefficient every 32 samples (~0.7ms @ 48kHz)
   }
 
   process(inputL, inputR) {
     if (!this.enabled) return [inputL, inputR];
 
-    const lfoValue = Math.sin(this.lfoPhase * 2 * Math.PI);
-    this.lfoPhase += this.rate / this.sampleRate;
-    if (this.lfoPhase >= 1) this.lfoPhase -= 1;
+    // Update LFO and coefficient only periodically
+    if (this.samplesSinceUpdate >= this.updateInterval) {
+      const lfoValue = Math.sin(this.lfoPhase * 2 * Math.PI);
+      this.lfoPhase += (this.rate * this.updateInterval) / this.sampleRate;
+      if (this.lfoPhase >= 1) this.lfoPhase -= 1;
 
-    const freqRange = this.maxFreq - this.minFreq;
-    const currentFreq =
-      this.minFreq + (lfoValue * 0.5 + 0.5) * freqRange * this.depth;
+      const freqRange = this.maxFreq - this.minFreq;
+      const currentFreq =
+        this.minFreq + (lfoValue * 0.5 + 0.5) * freqRange * this.depth;
 
-    const omega = (2 * Math.PI * currentFreq) / this.sampleRate;
-    const tanHalfOmega = Math.tan(omega / 2);
-    const a1 = (tanHalfOmega - 1) / (tanHalfOmega + 1);
+      const omega = (2 * Math.PI * currentFreq) / this.sampleRate;
+      const tanHalfOmega = Math.tan(omega / 2);
+      this.cachedA1 = (tanHalfOmega - 1) / (tanHalfOmega + 1);
+
+      this.samplesSinceUpdate = 0;
+    }
+    this.samplesSinceUpdate++;
+
+    const a1 = this.cachedA1;
 
     let outputL = inputL + this.feedbackL * this.feedback;
     for (let i = 0; i < this.numStages; i++) {
@@ -186,6 +199,8 @@ class PhaserEffect extends FXBase {
     this.feedbackL = 0;
     this.feedbackR = 0;
     this.lfoPhase = 0;
+    this.samplesSinceUpdate = 0;
+    this.cachedA1 = 0;
   }
 }
 
@@ -900,19 +915,28 @@ class PitchShifterEffect extends FXBase {
   constructor(sampleRate, id) {
     super(sampleRate, id);
 
-    this.bufferSize = 8192;
+    // Scale buffer and grain sizes based on sample rate
+    // Target: ~85ms latency @ 48kHz (was ~170ms)
+    const baseBufferSize = 4096; // Base for 48kHz
+    const baseGrainSize = 1024; // Base for 48kHz
+    const scaleFactor = sampleRate / 48000;
+
+    this.bufferSize = Math.pow(
+      2,
+      Math.round(Math.log2(baseBufferSize * scaleFactor))
+    );
     this.bufferL = new Float32Array(this.bufferSize);
     this.bufferR = new Float32Array(this.bufferSize);
     this.writeIndex = 0;
 
-    this.grainSize = 2048;
+    this.grainSize = Math.pow(
+      2,
+      Math.round(Math.log2(baseGrainSize * scaleFactor))
+    );
     this.overlapFactor = 4;
     this.hopSize = Math.floor(this.grainSize / this.overlapFactor);
 
     this.grainPhase = 0;
-    this.grainBuffer = new Float32Array(this.grainSize);
-    this.grainBufferL = new Float32Array(this.grainSize);
-    this.grainBufferR = new Float32Array(this.grainSize);
     this.outputPhase = 0;
 
     this.fadeBuffer = this.createHannWindow(this.grainSize);
@@ -921,6 +945,10 @@ class PitchShifterEffect extends FXBase {
     this.fine = 0;
     this.dry = 1.0;
     this.wet = 0.0;
+
+    // Block processing: update once per hop instead of per sample
+    this.blockCounter = 0;
+    this.blockOutput = { L: 0, R: 0 };
   }
 
   createHannWindow(size) {
@@ -934,13 +962,14 @@ class PitchShifterEffect extends FXBase {
   process(inputL, inputR) {
     if (!this.enabled) return [inputL, inputR];
 
+    // Write to circular buffer
     this.bufferL[this.writeIndex] = inputL;
     this.bufferR[this.writeIndex] = inputR;
     this.writeIndex = (this.writeIndex + 1) % this.bufferSize;
 
     const semitones = this.coarse + this.fine / 100.0;
-    const pitchRatio = Math.pow(2, semitones / 12);
 
+    // Bypass if no shift
     if (Math.abs(semitones) < 0.01) {
       return [
         inputL * this.dry + inputL * this.wet,
@@ -948,36 +977,47 @@ class PitchShifterEffect extends FXBase {
       ];
     }
 
-    let shiftedL = 0;
-    let shiftedR = 0;
+    // Block-based processing: only recompute grains at hop boundaries
+    if (this.blockCounter >= this.hopSize) {
+      const pitchRatio = Math.pow(2, semitones / 12);
 
-    for (let grain = 0; grain < this.overlapFactor; grain++) {
-      const grainOffset = grain * this.hopSize;
-      const readPhase =
-        (this.grainPhase + grainOffset * pitchRatio) % this.grainSize;
+      let shiftedL = 0;
+      let shiftedR = 0;
 
-      const samplesToRead = this.grainSize / 2;
-      const readPos = this.writeIndex - samplesToRead + readPhase * pitchRatio;
+      // Process overlapping grains
+      for (let grain = 0; grain < this.overlapFactor; grain++) {
+        const grainOffset = grain * this.hopSize;
+        const readPhase =
+          (this.grainPhase + grainOffset * pitchRatio) % this.grainSize;
 
-      const sampleL = this.readBuffer(this.bufferL, readPos);
-      const sampleR = this.readBuffer(this.bufferR, readPos);
+        const samplesToRead = this.grainSize / 2;
+        const readPos =
+          this.writeIndex - samplesToRead + readPhase * pitchRatio;
 
-      const windowPos = Math.floor(
-        (readPhase / this.grainSize) * (this.fadeBuffer.length - 1)
-      );
-      const windowValue = this.fadeBuffer[windowPos] || 0;
+        const sampleL = this.readBuffer(this.bufferL, readPos);
+        const sampleR = this.readBuffer(this.bufferR, readPos);
 
-      shiftedL += sampleL * windowValue;
-      shiftedR += sampleR * windowValue;
+        const windowPos = Math.floor(
+          (readPhase / this.grainSize) * (this.fadeBuffer.length - 1)
+        );
+        const windowValue = this.fadeBuffer[windowPos] || 0;
+
+        shiftedL += sampleL * windowValue;
+        shiftedR += sampleR * windowValue;
+      }
+
+      this.blockOutput.L = shiftedL / this.overlapFactor;
+      this.blockOutput.R = shiftedR / this.overlapFactor;
+
+      this.grainPhase = (this.grainPhase + this.hopSize) % this.grainSize;
+      this.blockCounter = 0;
     }
 
-    shiftedL /= this.overlapFactor;
-    shiftedR /= this.overlapFactor;
+    this.blockCounter++;
 
-    this.grainPhase = (this.grainPhase + 1) % this.grainSize;
-
-    const outputL = inputL * this.dry + shiftedL * this.wet;
-    const outputR = inputR * this.dry + shiftedR * this.wet;
+    // Use cached block output
+    const outputL = inputL * this.dry + this.blockOutput.L * this.wet;
+    const outputR = inputR * this.dry + this.blockOutput.R * this.wet;
 
     return [outputL, outputR];
   }
@@ -1020,6 +1060,9 @@ class PitchShifterEffect extends FXBase {
     this.writeIndex = 0;
     this.grainPhase = 0;
     this.outputPhase = 0;
+    this.blockCounter = 0;
+    this.blockOutput.L = 0;
+    this.blockOutput.R = 0;
   }
 }
 
@@ -1037,15 +1080,47 @@ class FreqShifterEffect extends FXBase {
     this.allpassIR = this.createAllpassChain(this.numStages);
     this.allpassQR = this.createAllpassChain(this.numStages);
 
-    this.oscPhase = 0;
     this.shift = 100;
     this.mix = 0.5;
 
-    this.hilbertCoeffs = [
-      0.6923878, 0.9360654322959, 0.9882295226861, 0.9987488452737,
-      0.9996936637686, 0.9999305067355, 0.9999847344463, 0.9999965063808,
-      0.9999992659768, 0.9999998386534, 0.9999999670162, 0.9999999939119,
-    ];
+    // Compute sample-rate-dependent Hilbert coefficients
+    // Based on pole frequencies designed for optimal 90° phase shift
+    this.hilbertCoeffs = this.computeHilbertCoefficients(sampleRate);
+
+    // Incremental oscillator (faster than Math.sin/cos per sample)
+    // Using phasor rotation: z(n+1) = z(n) * e^(j*2π*f/fs)
+    this.oscI = 1.0; // Real part (cos)
+    this.oscQ = 0.0; // Imaginary part (sin)
+    this.oscIncI = 1.0; // Increment real
+    this.oscIncQ = 0.0; // Increment imag
+    this.updateOscillatorIncrement();
+  }
+
+  computeHilbertCoefficients(sampleRate) {
+    // 12-stage allpass with logarithmically spaced pole frequencies
+    // Covers approximately 20 Hz to Nyquist/4 for good phase approximation
+    const coeffs = [];
+    const minFreq = 20;
+    const maxFreq = sampleRate / 8; // Conservative to avoid aliasing
+
+    for (let i = 0; i < 12; i++) {
+      // Logarithmic spacing
+      const t = i / 11;
+      const freq = minFreq * Math.pow(maxFreq / minFreq, t);
+      const omega = (2 * Math.PI * freq) / sampleRate;
+      const tanHalfOmega = Math.tan(omega / 2);
+      const a = (tanHalfOmega - 1) / (tanHalfOmega + 1);
+      coeffs.push(a);
+    }
+
+    return coeffs;
+  }
+
+  updateOscillatorIncrement() {
+    // Precompute oscillator increment for phasor rotation
+    const omega = (2 * Math.PI * this.shift) / this.sampleRate;
+    this.oscIncI = Math.cos(omega);
+    this.oscIncQ = Math.sin(omega);
   }
 
   createAllpassChain(numStages) {
@@ -1068,10 +1143,18 @@ class FreqShifterEffect extends FXBase {
       this.allpassQR
     );
 
-    const shiftFreq = this.shift;
-    this.oscPhase += shiftFreq / this.sampleRate;
-    if (this.oscPhase >= 1) this.oscPhase -= 1;
-    if (this.oscPhase < 0) this.oscPhase += 1;
+    // Increment oscillator using phasor rotation (no sin/cos calls!)
+    const newI = this.oscI * this.oscIncI - this.oscQ * this.oscIncQ;
+    const newQ = this.oscI * this.oscIncQ + this.oscQ * this.oscIncI;
+    this.oscI = newI;
+    this.oscQ = newQ;
+
+    // Periodic renormalization to prevent drift (every ~1000 samples)
+    if (Math.random() < 0.001) {
+      const mag = Math.sqrt(this.oscI * this.oscI + this.oscQ * this.oscQ);
+      this.oscI /= mag;
+      this.oscQ /= mag;
+    }
 
     const outputL = inputL * (1 - this.mix) + shiftedL * this.mix;
     const outputR = inputR * (1 - this.mix) + shiftedR * this.mix;
@@ -1080,9 +1163,7 @@ class FreqShifterEffect extends FXBase {
   }
 
   processChannel(input, allpassI, allpassQ) {
-    const oscI = Math.cos(this.oscPhase * 2 * Math.PI);
-    const oscQ = Math.sin(this.oscPhase * 2 * Math.PI);
-
+    // Apply Hilbert transform via allpass filters
     let signalI = input;
     for (let i = 0; i < this.numStages; i++) {
       const stage = allpassI[i];
@@ -1101,7 +1182,8 @@ class FreqShifterEffect extends FXBase {
       stage.zm1 = temp - a * signalQ;
     }
 
-    const shifted = signalI * oscI - signalQ * oscQ;
+    // Single-sideband modulation using precomputed oscillator
+    const shifted = signalI * this.oscI - signalQ * this.oscQ;
 
     return shifted;
   }
@@ -1110,6 +1192,7 @@ class FreqShifterEffect extends FXBase {
     switch (name) {
       case 'shift':
         this.shift = Math.max(-500, Math.min(500, value));
+        this.updateOscillatorIncrement(); // Recompute increment when shift changes
         break;
       case 'mix':
         this.mix = Math.max(0, Math.min(1, value));
@@ -1122,7 +1205,8 @@ class FreqShifterEffect extends FXBase {
     this.allpassQL.forEach((stage) => (stage.zm1 = 0));
     this.allpassIR.forEach((stage) => (stage.zm1 = 0));
     this.allpassQR.forEach((stage) => (stage.zm1 = 0));
-    this.oscPhase = 0;
+    this.oscI = 1.0;
+    this.oscQ = 0.0;
   }
 }
 

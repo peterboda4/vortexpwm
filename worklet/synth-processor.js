@@ -1648,11 +1648,11 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     // Clean up finished voices
     this.voiceAllocator.cleanup();
 
-    // Watchdog: periodically check for stuck voices (max 10 seconds active)
+    // Watchdog: periodically check for stuck voices (max 40 seconds active)
     this.watchdogCounter += L.length;
     if (this.watchdogCounter >= this.watchdogInterval) {
       this.watchdogCounter = 0;
-      const maxVoiceFrames = 10.0 * this.sampleRate; // 10 seconds in frames
+      const maxVoiceFrames = 40.0 * this.sampleRate; // 40 seconds in frames
       this.voiceAllocator.watchdog(this.currentFrame, maxVoiceFrames);
     }
 

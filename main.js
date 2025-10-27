@@ -21,10 +21,16 @@ function showError(title, message) {
     max-width: 500px;
     font-family: system-ui, -apple-system, sans-serif;
   `;
-  errorDiv.innerHTML = `
-    <h2 style="margin: 0 0 10px 0; font-size: 18px;">${title}</h2>
-    <p style="margin: 0; font-size: 14px; line-height: 1.5;">${message}</p>
-  `;
+  const titleEl = document.createElement('h2');
+  titleEl.style.cssText = 'margin: 0 0 10px 0; font-size: 18px;';
+  titleEl.textContent = title;
+
+  const messageEl = document.createElement('p');
+  messageEl.style.cssText = 'margin: 0; font-size: 14px; line-height: 1.5;';
+  messageEl.textContent = message;
+
+  errorDiv.appendChild(titleEl);
+  errorDiv.appendChild(messageEl);
   document.body.appendChild(errorDiv);
 }
 

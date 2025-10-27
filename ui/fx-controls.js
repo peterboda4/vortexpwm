@@ -10,6 +10,14 @@ export class FXControls {
     this.effectsLibrary = document.getElementById('fx-library');
     this.draggedElement = null;
 
+    // Graceful fallback if UI elements are missing
+    if (!this.chainContainer || !this.effectsLibrary) {
+      console.warn(
+        'FX UI elements not found in DOM. FX controls will be disabled.'
+      );
+      return;
+    }
+
     // Wait for metadata to load before initializing
     this.init();
   }
@@ -26,6 +34,8 @@ export class FXControls {
   }
 
   initLibrary() {
+    if (!this.effectsLibrary) return;
+
     const effects = this.fxController.getAvailableEffects();
 
     if (effects.length === 0) {
@@ -45,6 +55,8 @@ export class FXControls {
   }
 
   initDragAndDrop() {
+    if (!this.effectsLibrary || !this.chainContainer) return;
+
     this.effectsLibrary.addEventListener('dragstart', (e) => {
       if (e.target.classList.contains('fx-library-item')) {
         e.dataTransfer.effectAllowed = 'copy';
@@ -155,6 +167,8 @@ export class FXControls {
   }
 
   addEffectToUI(instanceId, effectId, position = -1) {
+    if (!this.chainContainer) return;
+
     const metadata = this.fxController.getEffectMetadata(effectId);
 
     const item = document.createElement('div');
