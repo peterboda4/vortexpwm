@@ -8,7 +8,9 @@ import assert from 'node:assert';
 describe('Pitch Shifter Effect', () => {
   describe('Metadata', () => {
     it('should have valid metadata structure', async () => {
-      const { PitchShifterEffect } = await import('../../fx/effects/pitchshifter.js');
+      const { PitchShifterEffect } = await import(
+        '../../fx/effects/pitchshifter.js'
+      );
       const metadata = PitchShifterEffect.getMetadata();
 
       assert.strictEqual(metadata.id, 'pitchshifter');
@@ -20,7 +22,9 @@ describe('Pitch Shifter Effect', () => {
 
   describe('Parameters', () => {
     it('should have coarse parameter', async () => {
-      const { PitchShifterEffect } = await import('../../fx/effects/pitchshifter.js');
+      const { PitchShifterEffect } = await import(
+        '../../fx/effects/pitchshifter.js'
+      );
       const metadata = PitchShifterEffect.getMetadata();
 
       const param = metadata.parameters.find((p) => p.name === 'coarse');
@@ -33,7 +37,9 @@ describe('Pitch Shifter Effect', () => {
     });
 
     it('should have fine parameter', async () => {
-      const { PitchShifterEffect } = await import('../../fx/effects/pitchshifter.js');
+      const { PitchShifterEffect } = await import(
+        '../../fx/effects/pitchshifter.js'
+      );
       const metadata = PitchShifterEffect.getMetadata();
 
       const param = metadata.parameters.find((p) => p.name === 'fine');
@@ -46,7 +52,9 @@ describe('Pitch Shifter Effect', () => {
     });
 
     it('should have dry parameter', async () => {
-      const { PitchShifterEffect } = await import('../../fx/effects/pitchshifter.js');
+      const { PitchShifterEffect } = await import(
+        '../../fx/effects/pitchshifter.js'
+      );
       const metadata = PitchShifterEffect.getMetadata();
 
       const param = metadata.parameters.find((p) => p.name === 'dry');
@@ -58,7 +66,9 @@ describe('Pitch Shifter Effect', () => {
     });
 
     it('should have wet parameter', async () => {
-      const { PitchShifterEffect } = await import('../../fx/effects/pitchshifter.js');
+      const { PitchShifterEffect } = await import(
+        '../../fx/effects/pitchshifter.js'
+      );
       const metadata = PitchShifterEffect.getMetadata();
 
       const param = metadata.parameters.find((p) => p.name === 'wet');
@@ -70,7 +80,9 @@ describe('Pitch Shifter Effect', () => {
     });
 
     it('should have exactly 4 parameters', async () => {
-      const { PitchShifterEffect } = await import('../../fx/effects/pitchshifter.js');
+      const { PitchShifterEffect } = await import(
+        '../../fx/effects/pitchshifter.js'
+      );
       const metadata = PitchShifterEffect.getMetadata();
 
       assert.strictEqual(metadata.parameters.length, 4);
@@ -79,7 +91,9 @@ describe('Pitch Shifter Effect', () => {
 
   describe('Parameter Validation', () => {
     it('should have valid min/max ranges', async () => {
-      const { PitchShifterEffect } = await import('../../fx/effects/pitchshifter.js');
+      const { PitchShifterEffect } = await import(
+        '../../fx/effects/pitchshifter.js'
+      );
       const metadata = PitchShifterEffect.getMetadata();
 
       for (const param of metadata.parameters) {

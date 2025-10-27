@@ -317,8 +317,12 @@ function validateWorkletProcessor(code, filename) {
   // Check for ES6 import statements
   const importRegex = /^\s*import\s+/m;
   if (importRegex.test(code)) {
-    console.error(`❌ Build validation failed: ${filename} contains import statements`);
-    console.error('   AudioWorklet processors must be self-contained (no imports allowed)');
+    console.error(
+      `❌ Build validation failed: ${filename} contains import statements`
+    );
+    console.error(
+      '   AudioWorklet processors must be self-contained (no imports allowed)'
+    );
     const matches = code.match(/^\s*import\s+.+$/gm);
     if (matches) {
       console.error('   Found imports:');
@@ -330,16 +334,24 @@ function validateWorkletProcessor(code, filename) {
   // Check for dynamic imports
   const dynamicImportRegex = /import\s*\(/;
   if (dynamicImportRegex.test(code)) {
-    console.error(`❌ Build validation failed: ${filename} contains dynamic import() calls`);
-    console.error('   AudioWorklet processors must be self-contained (no dynamic imports)');
+    console.error(
+      `❌ Build validation failed: ${filename} contains dynamic import() calls`
+    );
+    console.error(
+      '   AudioWorklet processors must be self-contained (no dynamic imports)'
+    );
     process.exit(1);
   }
 
   // Check for require() calls (CommonJS)
   const requireRegex = /\brequire\s*\(/;
   if (requireRegex.test(code)) {
-    console.error(`❌ Build validation failed: ${filename} contains require() calls`);
-    console.error('   AudioWorklet processors must be self-contained (no require)');
+    console.error(
+      `❌ Build validation failed: ${filename} contains require() calls`
+    );
+    console.error(
+      '   AudioWorklet processors must be self-contained (no require)'
+    );
     process.exit(1);
   }
 }
@@ -480,7 +492,9 @@ if (!fs.existsSync(path.join(__dirname, 'dist'))) {
 
 // Validate final HTML before writing
 if (!finalHtml.includes('__workletURLs')) {
-  console.error('❌ Build validation failed: Worklet setup code not found in final HTML');
+  console.error(
+    '❌ Build validation failed: Worklet setup code not found in final HTML'
+  );
   process.exit(1);
 }
 
@@ -497,7 +511,9 @@ if (finalHtml.includes('link rel="stylesheet"')) {
 
 // Check that main.js script tag was replaced
 if (finalHtml.includes('src="./main.js"')) {
-  console.error('❌ Build validation failed: main.js script not replaced with inline code');
+  console.error(
+    '❌ Build validation failed: main.js script not replaced with inline code'
+  );
   process.exit(1);
 }
 

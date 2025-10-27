@@ -82,7 +82,10 @@ async function initApp() {
       if (!document.hidden && synth.ctx && synth.ctx.state === 'suspended') {
         console.log('Tab became visible, resuming audio...');
         synth.ctx.resume().catch((err) => {
-          console.error('Failed to resume audio after tab visibility change:', err);
+          console.error(
+            'Failed to resume audio after tab visibility change:',
+            err
+          );
         });
       }
     });

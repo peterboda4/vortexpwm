@@ -121,6 +121,7 @@ The build script ([build.js](build.js)) uses a sophisticated **3-pass patching s
 This ensures all module dependencies are correctly resolved, even when modules import other modules that haven't been patched yet.
 
 **Key features:**
+
 - Automatic module discovery (no manual maintenance)
 - Preserves ES module semantics via data URLs
 - Special handling for AudioWorklet processors (Blob URLs)
@@ -130,21 +131,25 @@ This ensures all module dependencies are correctly resolved, even when modules i
 #### Build Troubleshooting
 
 **Problem: Build fails with "Missing modules in moduleMap"**
+
 - Cause: A module couldn't be resolved during patching
 - Solution: Check import paths for typos or circular dependencies
 - Debug: Run `BUILD_DEBUG=1 npm run build` to see detailed patching info
 
 **Problem: Build succeeds but synth doesn't work**
+
 - Cause: Not running in secure context (HTTPS/localhost required)
 - Solution: Serve via `https://` or `http://localhost`
 - Check: Browser console will show "Not in secure context" error
 
 **Problem: Build file size is unexpectedly large**
+
 - Cause: New modules or effects added without optimization
 - Expected: ~260-280KB for full synth with 11 effects
 - Check: Large console.log statements or debug code left in
 
 **Problem: "Pass3 reached max iterations without convergence"**
+
 - Cause: Circular import dependency between modules
 - Solution: Review module structure and break circular dependencies
 - Debug: Enable BUILD_DEBUG=1 to trace import chain
@@ -158,6 +163,7 @@ BUILD_DEBUG=1 npm run build
 ```
 
 This shows:
+
 - Every import patch operation
 - Module resolution details
 - Pass 3 iteration progress

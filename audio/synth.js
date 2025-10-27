@@ -30,9 +30,10 @@ export function checkBrowserCompatibility() {
   return {
     supported: missing.length === 0,
     missing: missing,
-    message: missing.length > 0
-      ? `Your browser doesn't support: ${missing.join(', ')}. Please use a modern browser (Chrome 66+, Edge 79+, Firefox 76+, Safari 14.1+).`
-      : 'Browser is compatible',
+    message:
+      missing.length > 0
+        ? `Your browser doesn't support: ${missing.join(', ')}. Please use a modern browser (Chrome 66+, Edge 79+, Firefox 76+, Safari 14.1+).`
+        : 'Browser is compatible',
   };
 }
 
@@ -120,57 +121,57 @@ export class Synth {
 
       try {
         this.node = new AudioWorkletNode(this.ctx, 'mono-pwm-synth', {
-      numberOfInputs: 0,
-      numberOfOutputs: 1,
-      outputChannelCount: [2],
-      parameterData: {
-        oscillatorCoarseTune: 0,
-        oscillatorFineTune: 0,
-        pitchBend: 0,
-        pitchBendRange: 2,
-        oscillatorVolume: 1.0,
-        pulseWidth: 0.5,
-        pulseWidthModulationDepth: 0.5,
-        pulseWidthModulationRate: 2.0,
-        panningPosition: 0.0,
-        panningModulationDepth: 0.5,
-        panningModulationRate: 0.5,
-        envelopeAttack: 0.005,
-        envelopeDecay: 0.1,
-        envelopeSustain: 0.7,
-        envelopeRelease: 0.2,
-        subOscillatorVolume: 0.0,
-        frequencyModulationDepth: 0.0,
-        oscillator2Waveform: 0,
-        oscillator2CoarseTune: 0,
-        oscillator2FineTune: 0,
-        oscillator2Volume: 0.0,
-        subOscillator2Volume: 0.0,
-        oscillator2HardSync: 0,
-        ringModulatorVolume: 0.0,
-        noiseVolume: 0.0,
-        masterVolume: 0.4,
-        velocityAmount: 0.5,
-        aftertouchDest1: 0,
-        aftertouchAmount1: 0.0,
-        aftertouchDest2: 0,
-        aftertouchAmount2: 0.0,
-        aftertouchDest3: 0,
-        aftertouchAmount3: 0.0,
-        aftertouchDest4: 0,
-        aftertouchAmount4: 0.0,
-        filterCutoff: 5000,
-        filterResonance: 0.1,
-        hpfCutoff: 20,
-        hpfResonance: 0.1,
-        filterEnvAttack: 0.005,
-        filterEnvDecay: 0.1,
-        filterEnvSustain: 0.7,
-        filterEnvRelease: 0.2,
-        lpEnvAmount: 0.0,
-        hpEnvAmount: 0.0,
-      },
-      });
+          numberOfInputs: 0,
+          numberOfOutputs: 1,
+          outputChannelCount: [2],
+          parameterData: {
+            oscillatorCoarseTune: 0,
+            oscillatorFineTune: 0,
+            pitchBend: 0,
+            pitchBendRange: 2,
+            oscillatorVolume: 1.0,
+            pulseWidth: 0.5,
+            pulseWidthModulationDepth: 0.5,
+            pulseWidthModulationRate: 2.0,
+            panningPosition: 0.0,
+            panningModulationDepth: 0.5,
+            panningModulationRate: 0.5,
+            envelopeAttack: 0.005,
+            envelopeDecay: 0.1,
+            envelopeSustain: 0.7,
+            envelopeRelease: 0.2,
+            subOscillatorVolume: 0.0,
+            frequencyModulationDepth: 0.0,
+            oscillator2Waveform: 0,
+            oscillator2CoarseTune: 0,
+            oscillator2FineTune: 0,
+            oscillator2Volume: 0.0,
+            subOscillator2Volume: 0.0,
+            oscillator2HardSync: 0,
+            ringModulatorVolume: 0.0,
+            noiseVolume: 0.0,
+            masterVolume: 0.4,
+            velocityAmount: 0.5,
+            aftertouchDest1: 0,
+            aftertouchAmount1: 0.0,
+            aftertouchDest2: 0,
+            aftertouchAmount2: 0.0,
+            aftertouchDest3: 0,
+            aftertouchAmount3: 0.0,
+            aftertouchDest4: 0,
+            aftertouchAmount4: 0.0,
+            filterCutoff: 5000,
+            filterResonance: 0.1,
+            hpfCutoff: 20,
+            hpfResonance: 0.1,
+            filterEnvAttack: 0.005,
+            filterEnvDecay: 0.1,
+            filterEnvSustain: 0.7,
+            filterEnvRelease: 0.2,
+            lpEnvAmount: 0.0,
+            hpEnvAmount: 0.0,
+          },
+        });
       } catch (err) {
         logger.error('Failed to create AudioWorkletNode:', err);
         this.state.initializing = false;
@@ -189,9 +190,11 @@ export class Synth {
         const msg = event.data;
         if (msg.type === 'voiceCount') {
           // Dispatch custom event for UI to listen to
-          window.dispatchEvent(new CustomEvent('voiceCount', {
-            detail: { active: msg.active, total: msg.total }
-          }));
+          window.dispatchEvent(
+            new CustomEvent('voiceCount', {
+              detail: { active: msg.active, total: msg.total },
+            })
+          );
         }
       };
 
@@ -199,7 +202,9 @@ export class Synth {
       this.setupStateMonitoring();
 
       this.state.initializing = false;
-      logger.info('Synth initialized successfully (fallback connection active)');
+      logger.info(
+        'Synth initialized successfully (fallback connection active)'
+      );
       return this.state;
     } catch (err) {
       this.state.initializing = false;
@@ -221,7 +226,9 @@ export class Synth {
       logger.error('Failed to initialize FX chain:', err);
       // Re-connect fallback since FX initialization failed
       this.node.connect(this.ctx.destination);
-      throw new Error('Failed to initialize effects chain. Using direct audio output.');
+      throw new Error(
+        'Failed to initialize effects chain. Using direct audio output.'
+      );
     }
   }
 
@@ -241,7 +248,9 @@ export class Synth {
         logger.info('AudioContext started (state: running)');
       } catch (err) {
         logger.error('Failed to resume AudioContext:', err);
-        throw new Error('Failed to start audio. Please check your browser permissions.');
+        throw new Error(
+          'Failed to start audio. Please check your browser permissions.'
+        );
       }
     }
   }
@@ -251,7 +260,10 @@ export class Synth {
     const now = performance.now();
     const lastUpdate = this.paramUpdateTimestamps.get(name);
 
-    if (lastUpdate !== undefined && (now - lastUpdate) < this.paramUpdateThrottle) {
+    if (
+      lastUpdate !== undefined &&
+      now - lastUpdate < this.paramUpdateThrottle
+    ) {
       // Throttled - update was too recent, skip silently
       // Note: This is intentionally silent to avoid log spam
       // AudioParam has internal smoothing so occasional skips are OK

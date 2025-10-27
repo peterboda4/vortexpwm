@@ -34,12 +34,15 @@ if (!effectName) {
 
 // Validate effect name (lowercase, alphanumeric only)
 if (!/^[a-z][a-z0-9]*$/.test(effectName)) {
-  console.error('Error: Effect name must be lowercase alphanumeric (e.g., "compressor", "eq3band")');
+  console.error(
+    'Error: Effect name must be lowercase alphanumeric (e.g., "compressor", "eq3band")'
+  );
   process.exit(1);
 }
 
 // Generate class name (PascalCase + "Effect" suffix)
-const className = effectName.charAt(0).toUpperCase() + effectName.slice(1) + 'Effect';
+const className =
+  effectName.charAt(0).toUpperCase() + effectName.slice(1) + 'Effect';
 
 // File paths
 const effectsDir = path.join(__dirname, '../fx/effects');
@@ -48,7 +51,9 @@ const registryPath = path.join(__dirname, '../fx/effect-registry.js');
 
 // Check if effect already exists
 if (fs.existsSync(effectFilePath)) {
-  console.error(`Error: Effect "${effectName}" already exists at ${effectFilePath}`);
+  console.error(
+    `Error: Effect "${effectName}" already exists at ${effectFilePath}`
+  );
   process.exit(1);
 }
 
@@ -142,7 +147,9 @@ console.log('\\nUpdating effect registry...');
 let registryCode = fs.readFileSync(registryPath, 'utf8');
 
 // Find the EFFECT_REGISTRY array
-const registryMatch = registryCode.match(/(export const EFFECT_REGISTRY = \[)([\s\S]*?)(\];)/);
+const registryMatch = registryCode.match(
+  /(export const EFFECT_REGISTRY = \[)([\s\S]*?)(\];)/
+);
 if (!registryMatch) {
   console.error('Error: Could not parse EFFECT_REGISTRY');
   process.exit(1);
@@ -180,9 +187,13 @@ console.log('   - Verify audio processing works correctly');
 console.log('\\n8. Build and validate:');
 console.log('   npm run build');
 console.log('\\n9. Document your effect in doc/FX_README.md');
-console.log('\\nThe effect is now automatically registered and will be available in:');
+console.log(
+  '\\nThe effect is now automatically registered and will be available in:'
+);
 console.log('  - FX Controller (main thread)');
 console.log('  - Build process (validation)');
 console.log('  - FX Chain Processor (worklet) - requires manual addition');
-console.log('\\nNote: You still need to manually add the effect class to worklet/fx-chain-processor.js');
+console.log(
+  '\\nNote: You still need to manually add the effect class to worklet/fx-chain-processor.js'
+);
 console.log('      (Search for "class HardClipEffect" to see the pattern)');

@@ -52,7 +52,7 @@ describe('${metadata.name} Effect', () => {
   });
 
   describe('Parameters', () => {
-${metadata.parameters.map(param => generateParameterTest(className, file, param)).join('\n\n')}
+${metadata.parameters.map((param) => generateParameterTest(className, file, param)).join('\n\n')}
 
     it('should have exactly ${metadata.parameters.length} parameters', async () => {
       const { ${className} } = await import('../../fx/effects/${file}');
@@ -97,7 +97,9 @@ ${metadata.parameters.map(param => generateParameterTest(className, file, param)
 }
 
 function generateParameterTest(className, file, param) {
-  const unitCheck = param.unit ? `\n      assert.strictEqual(param.unit, '${param.unit}');` : '';
+  const unitCheck = param.unit
+    ? `\n      assert.strictEqual(param.unit, '${param.unit}');`
+    : '';
 
   return `    it('should have ${param.name} parameter', async () => {
       const { ${className} } = await import('../../fx/effects/${file}');
@@ -132,7 +134,10 @@ async function main() {
       fs.writeFileSync(testPath, testContent, 'utf8');
       console.log(`  ✓ Created ${effectInfo.id}.test.js`);
     } catch (error) {
-      console.error(`  ✗ Error generating ${effectInfo.id}.test.js:`, error.message);
+      console.error(
+        `  ✗ Error generating ${effectInfo.id}.test.js:`,
+        error.message
+      );
     }
   }
 

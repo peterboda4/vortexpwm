@@ -179,7 +179,10 @@ export class MIDIInput {
     switch (ccNumber) {
       // Modulation Wheel → PWM Depth
       case 1:
-        this.synth.setParam('pulseWidthModulationDepth', this.mapCC(value, 0, 1));
+        this.synth.setParam(
+          'pulseWidthModulationDepth',
+          this.mapCC(value, 0, 1)
+        );
         break;
 
       // Volume → Master Volume
@@ -199,7 +202,10 @@ export class MIDIInput {
 
       // Effect Control 1 → PWM Rate
       case 12:
-        this.synth.setParam('pulseWidthModulationRate', this.mapCC(value, 0.1, 10));
+        this.synth.setParam(
+          'pulseWidthModulationRate',
+          this.mapCC(value, 0.1, 10)
+        );
         break;
 
       // Effect Control 2 → Pan Depth
@@ -273,10 +279,7 @@ export class MIDIInput {
 
       // Brightness (Filter Cutoff) → LPF Cutoff
       case 74:
-        this.synth.setParam(
-          'filterCutoff',
-          this.mapCC(value, 20, 20000, true)
-        );
+        this.synth.setParam('filterCutoff', this.mapCC(value, 20, 20000, true));
         break;
 
       // Sound Controller 6 → Filter Attack

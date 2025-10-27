@@ -166,7 +166,9 @@ describe('FX Controller - Parameter Validation', () => {
         ],
       };
 
-      const rateParam = chorusMetadata.parameters.find((p) => p.name === 'rate');
+      const rateParam = chorusMetadata.parameters.find(
+        (p) => p.name === 'rate'
+      );
       assert.ok(rateParam, 'Rate parameter should exist');
       assert.strictEqual(rateParam.min, 0.1);
       assert.strictEqual(rateParam.max, 5);
@@ -187,7 +189,9 @@ describe('FX Controller - Parameter Validation', () => {
         ],
       };
 
-      const sizeParam = reverbMetadata.parameters.find((p) => p.name === 'size');
+      const sizeParam = reverbMetadata.parameters.find(
+        (p) => p.name === 'size'
+      );
       assert.ok(sizeParam, 'Size parameter should exist');
       assert.strictEqual(sizeParam.min, 0);
       assert.strictEqual(sizeParam.max, 1);
@@ -201,7 +205,13 @@ describe('FX Controller - Parameter Validation', () => {
         id: 'bitcrusher',
         name: 'Bit Crusher',
         parameters: [
-          { name: 'bitDepth', label: 'Bit Depth', min: 2, max: 16, default: 16 },
+          {
+            name: 'bitDepth',
+            label: 'Bit Depth',
+            min: 2,
+            max: 16,
+            default: 16,
+          },
           {
             name: 'sampleRateReduction',
             label: 'Downsample',
@@ -231,12 +241,20 @@ describe('FX Controller - Parameter Validation', () => {
         parameters: [
           { name: 'rate', label: 'Rate', min: 0.1, max: 10, default: 0.5 },
           { name: 'depth', label: 'Depth', min: 0, max: 1, default: 0.7 },
-          { name: 'feedback', label: 'Feedback', min: -0.9, max: 0.9, default: 0.5 },
+          {
+            name: 'feedback',
+            label: 'Feedback',
+            min: -0.9,
+            max: 0.9,
+            default: 0.5,
+          },
           { name: 'mix', label: 'Mix', min: 0, max: 1, default: 0.3 },
         ],
       };
 
-      const rateParam = flangerMetadata.parameters.find((p) => p.name === 'rate');
+      const rateParam = flangerMetadata.parameters.find(
+        (p) => p.name === 'rate'
+      );
       assert.ok(rateParam, 'rate parameter should exist in flanger');
       assert.strictEqual(rateParam.min, 0.1);
       assert.strictEqual(rateParam.max, 10);
@@ -283,7 +301,10 @@ describe('FX Controller - Parameter Validation', () => {
       // All effects should have at least these fields
       for (const effect of effectsToTest) {
         assert.ok(effect.id, `Effect should have id`);
-        assert.ok(effect.paramToTest, `Effect ${effect.id} should have test parameter`);
+        assert.ok(
+          effect.paramToTest,
+          `Effect ${effect.id} should have test parameter`
+        );
         assert.strictEqual(
           typeof effect.expectedMin,
           'number',

@@ -9,15 +9,18 @@
 ## FTP Upload
 
 ### Files to Upload
+
 - **Only file needed:** `dist/index.html`
 - No other files required (fully self-contained)
 
 ### Server Requirements
+
 - **MUST serve over HTTPS** (not HTTP)
 - AudioWorklet API requires secure context
 - HTTP or file:// protocol will fail with "Initialization Failed"
 
 ### Recommended Hosting Options
+
 If your FTP server doesn't support HTTPS:
 
 1. **GitHub Pages** (Free HTTPS)
@@ -50,11 +53,13 @@ If your FTP server doesn't support HTTPS:
 ### "Initialization Failed" Error
 
 **Check console for:**
+
 ```
 [Build] ERROR: Not in secure context
 ```
 
 **Solutions:**
+
 - Ensure URL is `https://` not `http://`
 - If using custom domain, verify SSL certificate is valid
 - Try in different browser (Chrome, Firefox, Safari all support AudioWorklet)
@@ -76,12 +81,14 @@ If your FTP server doesn't support HTTPS:
 ## Browser Compatibility
 
 **Supported:**
+
 - Chrome 66+
 - Firefox 76+
 - Safari 14.1+
 - Edge 79+
 
 **Required APIs:**
+
 - Web Audio API
 - AudioWorklet
 - Web MIDI API (optional, for MIDI controllers)

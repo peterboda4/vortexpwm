@@ -100,10 +100,7 @@ describe('ParameterManager', () => {
       ]);
 
       assert.strictEqual(pm.validateValue('test', 'wave', 'sine'), 'sine');
-      assert.strictEqual(
-        pm.validateValue('test', 'wave', 'invalid'),
-        'sine'
-      ); // Fallback to default
+      assert.strictEqual(pm.validateValue('test', 'wave', 'invalid'), 'sine'); // Fallback to default
     });
 
     it('should return default for invalid numbers', () => {
@@ -322,10 +319,7 @@ describe('ParameterManager', () => {
         { name: 'freq', min: 0, max: 1000, default: 500, unit: 'Hz' },
       ]);
 
-      assert.strictEqual(
-        pm.formatValue('test', 'freq', 440),
-        '440.00 Hz'
-      );
+      assert.strictEqual(pm.formatValue('test', 'freq', 440), '440.00 Hz');
     });
 
     it('should format boolean values', () => {

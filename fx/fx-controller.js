@@ -124,9 +124,7 @@ export class FXController {
 
     // Check if effect exists before sending message to prevent race condition
     if (!this.activeEffects.has(instanceId)) {
-      console.warn(
-        `Cannot set parameter for removed effect: ${instanceId}`
-      );
+      console.warn(`Cannot set parameter for removed effect: ${instanceId}`);
       return;
     }
 
@@ -201,7 +199,8 @@ export class FXController {
   handleMessage(msg) {
     if (msg.type === 'effectAdded') {
       // Insert at the reported position to match worklet order
-      const position = msg.position >= 0 ? msg.position : this.chainOrder.length;
+      const position =
+        msg.position >= 0 ? msg.position : this.chainOrder.length;
       this.chainOrder.splice(position, 0, msg.instanceId);
 
       window.dispatchEvent(

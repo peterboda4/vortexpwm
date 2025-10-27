@@ -8,7 +8,9 @@ import assert from 'node:assert';
 describe('Freq Shifter Effect', () => {
   describe('Metadata', () => {
     it('should have valid metadata structure', async () => {
-      const { FreqShifterEffect } = await import('../../fx/effects/freqshifter.js');
+      const { FreqShifterEffect } = await import(
+        '../../fx/effects/freqshifter.js'
+      );
       const metadata = FreqShifterEffect.getMetadata();
 
       assert.strictEqual(metadata.id, 'freqshifter');
@@ -20,7 +22,9 @@ describe('Freq Shifter Effect', () => {
 
   describe('Parameters', () => {
     it('should have shift parameter', async () => {
-      const { FreqShifterEffect } = await import('../../fx/effects/freqshifter.js');
+      const { FreqShifterEffect } = await import(
+        '../../fx/effects/freqshifter.js'
+      );
       const metadata = FreqShifterEffect.getMetadata();
 
       const param = metadata.parameters.find((p) => p.name === 'shift');
@@ -33,7 +37,9 @@ describe('Freq Shifter Effect', () => {
     });
 
     it('should have mix parameter', async () => {
-      const { FreqShifterEffect } = await import('../../fx/effects/freqshifter.js');
+      const { FreqShifterEffect } = await import(
+        '../../fx/effects/freqshifter.js'
+      );
       const metadata = FreqShifterEffect.getMetadata();
 
       const param = metadata.parameters.find((p) => p.name === 'mix');
@@ -45,7 +51,9 @@ describe('Freq Shifter Effect', () => {
     });
 
     it('should have exactly 2 parameters', async () => {
-      const { FreqShifterEffect } = await import('../../fx/effects/freqshifter.js');
+      const { FreqShifterEffect } = await import(
+        '../../fx/effects/freqshifter.js'
+      );
       const metadata = FreqShifterEffect.getMetadata();
 
       assert.strictEqual(metadata.parameters.length, 2);
@@ -54,7 +62,9 @@ describe('Freq Shifter Effect', () => {
 
   describe('Parameter Validation', () => {
     it('should have valid min/max ranges', async () => {
-      const { FreqShifterEffect } = await import('../../fx/effects/freqshifter.js');
+      const { FreqShifterEffect } = await import(
+        '../../fx/effects/freqshifter.js'
+      );
       const metadata = FreqShifterEffect.getMetadata();
 
       for (const param of metadata.parameters) {

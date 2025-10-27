@@ -606,7 +606,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
           this.messageQueue.push({
             type: 'noteOn',
             midi: msg.midi | 0,
-            velocity: Math.max(0, Math.min(1, +msg.velocity))
+            velocity: Math.max(0, Math.min(1, +msg.velocity)),
           });
         } else {
           console.warn('Message queue full, dropping noteOn message');
@@ -621,7 +621,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         if (this.messageQueue.length < this.maxQueueSize) {
           this.messageQueue.push({
             type: 'noteOff',
-            midi: msg.midi | 0
+            midi: msg.midi | 0,
           });
         } else {
           console.warn('Message queue full, dropping noteOff message');
@@ -1390,7 +1390,10 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       const maxVoiceFrames = 10.0 * this.sampleRate; // 10 seconds in frames
       for (let i = 0; i < this.maxVoices; i++) {
         const voice = this.voices[i];
-        if (voice.active && this.currentFrame - voice.activationTime > maxVoiceFrames) {
+        if (
+          voice.active &&
+          this.currentFrame - voice.activationTime > maxVoiceFrames
+        ) {
           // Force voice to idle state and reset completely
           if (voice.midi >= 0) {
             this.noteToVoice.delete(voice.midi);
@@ -1500,7 +1503,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         this.port.postMessage({
           type: 'voiceCount',
           active: activeCount,
-          total: this.maxVoices
+          total: this.maxVoices,
         });
       }
     }
