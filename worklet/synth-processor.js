@@ -1,6 +1,17 @@
 // worklet/synth-processor.js - Polyphonic PWM synth with stereo path, autopan, ADSR, master
 // Note: run from a secure context (https or localhost).
 
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+// Maximum number of simultaneous voices (polyphony limit)
+// Change this value to adjust polyphony. Higher values = more CPU usage.
+const MAX_VOICES = 8;
+
+// =============================================================================
+// AUDIO PROCESSING
+// =============================================================================
+
 // IIR Filter class (24dB resonant lowpass)
 class IIRFilter {
   constructor() {
@@ -8,42 +19,42 @@ class IIRFilter {
   }
 
   reset() {
-    // First biquad state
-    this.x1_1 = 0;
-    this.x2_1 = 0;
-    this.y1_1 = 0;
-    this.y2_1 = 0;
+    // First biquad state - use exact zero to prevent denormals
+    this.x1_1 = 0.0;
+    this.x2_1 = 0.0;
+    this.y1_1 = 0.0;
+    this.y2_1 = 0.0;
 
     // Second biquad state
-    this.x1_2 = 0;
-    this.x2_2 = 0;
-    this.y1_2 = 0;
-    this.y2_2 = 0;
+    this.x1_2 = 0.0;
+    this.x2_2 = 0.0;
+    this.y1_2 = 0.0;
+    this.y2_2 = 0.0;
 
     // Third biquad state (for 18dB HPF)
-    this.x1_3 = 0;
-    this.x2_3 = 0;
-    this.y1_3 = 0;
-    this.y2_3 = 0;
+    this.x1_3 = 0.0;
+    this.x2_3 = 0.0;
+    this.y1_3 = 0.0;
+    this.y2_3 = 0.0;
 
     // Cached coefficients
-    this.b0_1 = 1;
-    this.b1_1 = 0;
-    this.b2_1 = 0;
-    this.a1_1 = 0;
-    this.a2_1 = 0;
+    this.b0_1 = 1.0;
+    this.b1_1 = 0.0;
+    this.b2_1 = 0.0;
+    this.a1_1 = 0.0;
+    this.a2_1 = 0.0;
 
-    this.b0_2 = 1;
-    this.b1_2 = 0;
-    this.b2_2 = 0;
-    this.a1_2 = 0;
-    this.a2_2 = 0;
+    this.b0_2 = 1.0;
+    this.b1_2 = 0.0;
+    this.b2_2 = 0.0;
+    this.a1_2 = 0.0;
+    this.a2_2 = 0.0;
 
-    this.b0_3 = 1;
-    this.b1_3 = 0;
-    this.b2_3 = 0;
-    this.a1_3 = 0;
-    this.a2_3 = 0;
+    this.b0_3 = 1.0;
+    this.b1_3 = 0.0;
+    this.b2_3 = 0.0;
+    this.a1_3 = 0.0;
+    this.a2_3 = 0.0;
 
     this.lastCutoff = -1;
     this.lastResonance = -1;
@@ -94,12 +105,20 @@ class IIRFilter {
     this.updateCoefficients(cutoffFreq, resonance, sampleRate, filterType);
 
     // First biquad
-    const y1 =
+    let y1 =
       this.b0_1 * input +
       this.b1_1 * this.x1_1 +
       this.b2_1 * this.x2_1 -
       this.a1_1 * this.y1_1 -
       this.a2_1 * this.y2_1;
+
+    // Clamp output to prevent overflow and NaN propagation
+    y1 = Math.max(-10, Math.min(10, y1));
+    // Check for NaN
+    if (isNaN(y1)) {
+      y1 = 0.0;
+      this.reset(); // Reset filter state if NaN detected
+    }
 
     this.x2_1 = this.x1_1;
     this.x1_1 = input;
@@ -107,12 +126,19 @@ class IIRFilter {
     this.y1_1 = y1;
 
     // Second biquad
-    const y2 =
+    let y2 =
       this.b0_2 * y1 +
       this.b1_2 * this.x1_2 +
       this.b2_2 * this.x2_2 -
       this.a1_2 * this.y1_2 -
       this.a2_2 * this.y2_2;
+
+    // Clamp output to prevent overflow
+    y2 = Math.max(-10, Math.min(10, y2));
+    if (isNaN(y2)) {
+      y2 = 0.0;
+      this.reset();
+    }
 
     this.x2_2 = this.x1_2;
     this.x1_2 = y1;
@@ -121,12 +147,19 @@ class IIRFilter {
 
     // For 18dB highpass, add third biquad stage
     if (filterType === 1) {
-      const y3 =
+      let y3 =
         this.b0_3 * y2 +
         this.b1_3 * this.x1_3 +
         this.b2_3 * this.x2_3 -
         this.a1_3 * this.y1_3 -
         this.a2_3 * this.y2_3;
+
+      // Clamp output to prevent overflow
+      y3 = Math.max(-10, Math.min(10, y3));
+      if (isNaN(y3)) {
+        y3 = 0.0;
+        this.reset();
+      }
 
       this.x2_3 = this.x1_3;
       this.x1_3 = y2;
@@ -469,14 +502,23 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     super();
     this.sampleRate = sampleRate;
 
+    // Validate sample rate
+    if (this.sampleRate < 22050 || this.sampleRate > 192000) {
+      console.warn(
+        `Unusual sample rate detected: ${this.sampleRate}Hz. Expected 44100-96000Hz. Audio timing may be incorrect.`
+      );
+    } else {
+      console.log(`AudioWorklet initialized at ${this.sampleRate}Hz`);
+    }
+
     // Aftertouch state (channel pressure, 0.0 to 1.0)
     this.aftertouch = 0.0;
 
     // Global white noise generator state (monophonic)
     this.noiseState = Math.random() * 4294967296; // 32-bit seed
 
-    // Voice pool (8 voices max)
-    this.maxVoices = 8;
+    // Voice pool
+    this.maxVoices = MAX_VOICES;
     this.voices = [];
     this.noteToVoice = new Map(); // midi note -> voice index
 
@@ -520,7 +562,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
 
     // Watchdog counter for periodic stuck voice detection
     this.watchdogCounter = 0;
-    this.watchdogInterval = 44100; // Check every ~1 second at 44.1kHz
+    this.watchdogInterval = this.sampleRate; // Check every ~1 second (sample rate dependent)
 
     this.port.onmessage = (e) => {
       const msg = e.data;
@@ -564,6 +606,36 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         console.error('Unknown message type:', msg.type);
       }
     };
+  }
+
+  // Completely reset a voice to initial state
+  resetVoice(voice) {
+    // Reset oscillator phases
+    voice.phase = 0.0;
+    voice.pwmLfoPhase = Math.random();
+    voice.subPhase = Math.random();
+    voice.panLfoPhase = Math.random();
+    voice.osc2Phase = Math.random();
+    voice.sub2Phase = Math.random();
+
+    // Reset envelopes
+    voice.env = 0.0;
+    voice.envState = 'idle';
+    voice.sustainLevel = 0.7;
+    voice.filterEnv = 0.0;
+    voice.filterEnvState = 'idle';
+    voice.filterSustainLevel = 0.7;
+
+    // Reset filters completely
+    voice.lpf.reset();
+    voice.hpf.reset();
+
+    // Reset voice data
+    voice.midi = -1;
+    voice.velocity = 1.0;
+    voice.gate = false;
+    voice.active = false;
+    voice.activationTime = 0;
   }
 
   // Find a free voice or steal oldest voice
@@ -620,6 +692,11 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     // Allocate new voice
     const voiceIndex = this.allocateVoice(midi);
     const voice = this.voices[voiceIndex];
+
+    // Reset voice completely if it was previously used (voice stealing)
+    if (voice.active || voice.envState !== 'idle') {
+      this.resetVoice(voice);
+    }
 
     voice.midi = midi;
     voice.velocity = velocity;
@@ -802,6 +879,9 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       params.pitchBend.length > 1
         ? params.pitchBend[sampleIndex]
         : params.pitchBend[0];
+    // Note: pitchBend already comes scaled by pitchBendRange from MIDI layer
+    // The pitchBendRange parameter is used by the MIDI layer, not here
+
     const baseSemi =
       voice.midi +
       coarseNow +
@@ -1098,25 +1178,19 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     // Release
     if (voice.envState === 'release') {
       if (envR <= 0) {
-        voice.env = 0.0;
-        voice.envState = 'idle';
-        voice.active = false;
         if (voice.midi >= 0) {
           this.noteToVoice.delete(voice.midi);
-          voice.midi = -1;
         }
+        this.resetVoice(voice);
       } else {
         // Divide by ~4.6 so displayed time matches actual time to reach ~99%
         const releaseCoeff = 1.0 - Math.exp(-1.0 / ((envR / 4.6) * sr));
         voice.env += (envFloor - voice.env) * releaseCoeff;
         if (voice.env <= envFloor * 1.5) {
-          voice.env = 0.0;
-          voice.envState = 'idle';
-          voice.active = false;
           if (voice.midi >= 0) {
             this.noteToVoice.delete(voice.midi);
-            voice.midi = -1;
           }
+          this.resetVoice(voice);
         }
       }
     }
@@ -1242,16 +1316,11 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       for (let i = 0; i < this.maxVoices; i++) {
         const voice = this.voices[i];
         if (voice.active && currentTime - voice.activationTime > maxVoiceTime) {
-          // Force voice to idle state
-          voice.active = false;
-          voice.envState = 'idle';
-          voice.filterEnvState = 'idle';
-          voice.env = 0.0;
-          voice.filterEnv = 0.0;
+          // Force voice to idle state and reset completely
           if (voice.midi >= 0) {
             this.noteToVoice.delete(voice.midi);
-            voice.midi = -1;
           }
+          this.resetVoice(voice);
         }
       }
     }

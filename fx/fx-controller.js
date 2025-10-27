@@ -147,9 +147,39 @@ export class FXController {
     return this.effectsMetadata.get(effectId);
   }
 
+  // Get state of first instance of an effect type (for MIDI CC mapping)
+  getEffectState(effectId) {
+    // Find first instance of this effect type
+    for (const [instanceId, effect] of this.activeEffects.entries()) {
+      if (effect.effectId === effectId) {
+        return {
+          instanceId: instanceId,
+          effectId: effectId,
+          enabled: effect.enabled,
+        };
+      }
+    }
+    return null;
+  }
+
+  // Set parameter on first instance of an effect type (for MIDI CC mapping)
+  setEffectParam(effectId, param, value) {
+    // Find first instance of this effect type
+    for (const [instanceId, effect] of this.activeEffects.entries()) {
+      if (effect.effectId === effectId) {
+        this.setParameter(instanceId, param, value);
+        return true;
+      }
+    }
+    console.warn(`No active instance of effect type: ${effectId}`);
+    return false;
+  }
+
   handleMessage(msg) {
     if (msg.type === 'effectAdded') {
-      this.chainOrder.push(msg.instanceId);
+      // Insert at the reported position to match worklet order
+      const position = msg.position >= 0 ? msg.position : this.chainOrder.length;
+      this.chainOrder.splice(position, 0, msg.instanceId);
 
       window.dispatchEvent(
         new CustomEvent('fxChainChanged', {
@@ -162,6 +192,9 @@ export class FXController {
         })
       );
     } else if (msg.type === 'effectRemoved') {
+      // Remove from chainOrder to keep it synchronized
+      this.chainOrder = this.chainOrder.filter((id) => id !== msg.instanceId);
+
       window.dispatchEvent(
         new CustomEvent('fxChainChanged', {
           detail: { type: 'removed', instanceId: msg.instanceId },
@@ -170,6 +203,13 @@ export class FXController {
     } else if (msg.type === 'error') {
       // Handle error messages from worklet (e.g., race conditions)
       console.warn(`FX Chain error: ${msg.message}`);
+
+      // Dispatch error event for UI feedback
+      window.dispatchEvent(
+        new CustomEvent('fxError', {
+          detail: { message: msg.message },
+        })
+      );
     }
   }
 
@@ -177,5 +217,12 @@ export class FXController {
     this.fxNode.port.postMessage({ type: 'clear' });
     this.activeEffects.clear();
     this.chainOrder = [];
+
+    // Notify UI that chain was cleared
+    window.dispatchEvent(
+      new CustomEvent('fxChainChanged', {
+        detail: { type: 'cleared' },
+      })
+    );
   }
 }

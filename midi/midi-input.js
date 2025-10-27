@@ -30,6 +30,15 @@ export class MIDIInput {
       // Listen for new MIDI devices
       this.midiAccess.onstatechange = (e) => {
         logger.info('MIDI device state changed:', e.port.name, e.port.state);
+
+        // Handle device disconnection
+        if (e.port.state === 'disconnected' && e.port.type === 'input') {
+          if (this.enabledInputs.has(e.port.id)) {
+            this.enabledInputs.delete(e.port.id);
+            logger.warn(`MIDI device disconnected: ${e.port.name}`);
+          }
+        }
+
         this.updateInputs();
         if (this.onDeviceChange) this.onDeviceChange();
       };
@@ -57,8 +66,8 @@ export class MIDIInput {
 
   connectInput(input) {
     input.onmidimessage = (msg) => {
-      // Only handle if input is enabled
-      if (this.enabledInputs.get(input.id)) {
+      // Only handle if input is enabled and connected
+      if (input.state === 'connected' && this.enabledInputs.get(input.id)) {
         this.handleMIDIMessage(msg, input.id);
       }
     };
@@ -352,12 +361,14 @@ export class MIDIInput {
 
   getAvailableInputs() {
     if (!this.midiAccess) return [];
-    return Array.from(this.midiAccess.inputs.values()).map((input) => ({
-      id: input.id,
-      name: input.name,
-      manufacturer: input.manufacturer,
-      state: input.state,
-      enabled: this.enabledInputs.get(input.id) ?? false,
-    }));
+    return Array.from(this.midiAccess.inputs.values())
+      .filter((input) => input.state === 'connected')
+      .map((input) => ({
+        id: input.id,
+        name: input.name,
+        manufacturer: input.manufacturer,
+        state: input.state,
+        enabled: this.enabledInputs.get(input.id) ?? false,
+      }));
   }
 }

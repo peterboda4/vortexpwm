@@ -1,5 +1,5 @@
 import { initUI } from './ui/controls.js';
-import { Synth } from './audio/synth.js';
+import { Synth, checkBrowserCompatibility } from './audio/synth.js';
 import { MIDIInput } from './midi/midi-input.js';
 import { FXControls } from './ui/fx-controls.js';
 
@@ -29,6 +29,13 @@ function showError(title, message) {
 
 // Initialize application with error handling
 async function initApp() {
+  // Check browser compatibility first
+  const compat = checkBrowserCompatibility();
+  if (!compat.supported) {
+    showError('Browser Not Supported', compat.message);
+    return;
+  }
+
   try {
     // Initialize synthesizer
     const synth = new Synth();
@@ -68,6 +75,16 @@ async function initApp() {
       const fxControls = new FXControls(fxController);
       console.log('FX UI initialized');
     }
+
+    // Setup visibility change handler to resume audio when tab becomes visible
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && synth.ctx && synth.ctx.state === 'suspended') {
+        console.log('Tab became visible, resuming audio...');
+        synth.ctx.resume().catch((err) => {
+          console.error('Failed to resume audio after tab visibility change:', err);
+        });
+      }
+    });
   } catch (error) {
     console.error('Fatal initialization error:', error);
 
