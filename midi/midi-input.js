@@ -1,5 +1,288 @@
-// midi/midi-input.js - Web MIDI API integration
+// midi/midi-input.js - Web MIDI API integration with configurable CC mapping
 import { logger } from '../utils/logger.js';
+
+const STORAGE_KEY = 'vortexpwm.ccMappings';
+
+const CC_TARGETS = [
+  {
+    id: 'pwmDepth',
+    label: 'PWM Depth',
+    group: 'Oscillator',
+    defaultCC: 1,
+    type: 'synthParam',
+    param: 'pulseWidthModulationDepth',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'masterVolume',
+    label: 'Master Volume',
+    group: 'Mixer',
+    defaultCC: 7,
+    type: 'synthParam',
+    param: 'masterVolume',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'panPosition',
+    label: 'Pan Position',
+    group: 'Mixer',
+    defaultCC: 10,
+    type: 'synthParam',
+    param: 'panningPosition',
+    min: -1,
+    max: 1,
+  },
+  {
+    id: 'oscillatorVolume',
+    label: 'Oscillator 1 Volume',
+    group: 'Mixer',
+    defaultCC: 11,
+    type: 'synthParam',
+    param: 'oscillatorVolume',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'pwmRate',
+    label: 'PWM Rate',
+    group: 'Oscillator',
+    defaultCC: 12,
+    type: 'synthParam',
+    param: 'pulseWidthModulationRate',
+    min: 0.1,
+    max: 10,
+  },
+  {
+    id: 'panDepth',
+    label: 'Pan Depth',
+    group: 'Mixer',
+    defaultCC: 13,
+    type: 'synthParam',
+    param: 'panningModulationDepth',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'subOscVolume',
+    label: 'Sub Oscillator 1 Volume',
+    group: 'Mixer',
+    defaultCC: 16,
+    type: 'synthParam',
+    param: 'subOscillatorVolume',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'oscillator2Volume',
+    label: 'Oscillator 2 Volume',
+    group: 'Mixer',
+    defaultCC: 17,
+    type: 'synthParam',
+    param: 'oscillator2Volume',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'subOsc2Volume',
+    label: 'Sub Oscillator 2 Volume',
+    group: 'Mixer',
+    defaultCC: 18,
+    type: 'synthParam',
+    param: 'subOscillator2Volume',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'noiseVolume',
+    label: 'Noise Volume',
+    group: 'Mixer',
+    defaultCC: 19,
+    type: 'synthParam',
+    param: 'noiseVolume',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'sustain',
+    label: 'Sustain Pedal',
+    group: 'Performance',
+    defaultCC: 64,
+    type: 'sustain',
+    threshold: 64,
+  },
+  {
+    id: 'filterResonance',
+    label: 'Filter Resonance',
+    group: 'Filter',
+    defaultCC: 71,
+    type: 'synthParam',
+    param: 'filterResonance',
+    min: 0,
+    max: 0.95,
+  },
+  {
+    id: 'filterEnvRelease',
+    label: 'Filter Env Release',
+    group: 'Filter',
+    defaultCC: 72,
+    type: 'synthParam',
+    param: 'filterEnvRelease',
+    min: 0,
+    max: 6,
+  },
+  {
+    id: 'ampEnvAttack',
+    label: 'Amp Env Attack',
+    group: 'Envelope',
+    defaultCC: 73,
+    type: 'synthParam',
+    param: 'envelopeAttack',
+    min: 0,
+    max: 6,
+  },
+  {
+    id: 'filterCutoff',
+    label: 'Filter Cutoff',
+    group: 'Filter',
+    defaultCC: 74,
+    type: 'synthParam',
+    param: 'filterCutoff',
+    min: 20,
+    max: 20000,
+    scaling: 'exponential',
+  },
+  {
+    id: 'filterEnvAttack',
+    label: 'Filter Env Attack',
+    group: 'Filter',
+    defaultCC: 75,
+    type: 'synthParam',
+    param: 'filterEnvAttack',
+    min: 0,
+    max: 6,
+  },
+  {
+    id: 'filterEnvDecay',
+    label: 'Filter Env Decay',
+    group: 'Filter',
+    defaultCC: 76,
+    type: 'synthParam',
+    param: 'filterEnvDecay',
+    min: 0,
+    max: 6,
+  },
+  {
+    id: 'filterEnvSustain',
+    label: 'Filter Env Sustain',
+    group: 'Filter',
+    defaultCC: 77,
+    type: 'synthParam',
+    param: 'filterEnvSustain',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'ampEnvDecay',
+    label: 'Amp Env Decay',
+    group: 'Envelope',
+    defaultCC: 80,
+    type: 'synthParam',
+    param: 'envelopeDecay',
+    min: 0,
+    max: 6,
+  },
+  {
+    id: 'ampEnvSustain',
+    label: 'Amp Env Sustain',
+    group: 'Envelope',
+    defaultCC: 81,
+    type: 'synthParam',
+    param: 'envelopeSustain',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'ampEnvRelease',
+    label: 'Amp Env Release',
+    group: 'Envelope',
+    defaultCC: 82,
+    type: 'synthParam',
+    param: 'envelopeRelease',
+    min: 0,
+    max: 6,
+  },
+  {
+    id: 'reverbMix',
+    label: 'Reverb Mix',
+    group: 'FX',
+    defaultCC: 91,
+    type: 'fxParam',
+    effectType: 'reverb',
+    param: 'mix',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'chorusMix',
+    label: 'Chorus Mix',
+    group: 'FX',
+    defaultCC: 93,
+    type: 'fxParam',
+    effectType: 'chorus',
+    param: 'mix',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'delayMix',
+    label: 'Delay Mix',
+    group: 'FX',
+    defaultCC: 94,
+    type: 'fxParam',
+    effectType: 'delay',
+    param: 'mix',
+    min: 0,
+    max: 1,
+  },
+  {
+    id: 'hpfCutoff',
+    label: 'HPF Cutoff',
+    group: 'Filter',
+    defaultCC: 102,
+    type: 'synthParam',
+    param: 'hpfCutoff',
+    min: 20,
+    max: 20000,
+    scaling: 'exponential',
+  },
+  {
+    id: 'panicAllSoundOff',
+    label: 'All Sound Off',
+    group: 'Utility',
+    defaultCC: 120,
+    type: 'panic',
+    mode: 'allSoundOff',
+  },
+  {
+    id: 'panicAllNotesOff',
+    label: 'All Notes Off',
+    group: 'Utility',
+    defaultCC: 123,
+    type: 'panic',
+    mode: 'allNotesOff',
+  },
+];
+
+const CC_TARGET_MAP = new Map(CC_TARGETS.map((target) => [target.id, target]));
+
+const isBrowserEnv =
+  typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+
+function safeHasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
 
 export class MIDIInput {
   constructor(synth) {
@@ -8,12 +291,176 @@ export class MIDIInput {
     this.enabledInputs = new Map(); // id -> enabled state
     this.onDeviceChange = null; // callback for UI updates
     this.onNoteActivity = null; // callback for note activity display
+    this.onMappingChange = null; // callback when CC mappings change
     this.pitchBendRange = 2; // semitones (±2 by default)
     this.velocityCurve = 0; // -100 to 100 (0 = linear)
 
     // Sustain pedal state
     this.sustainPedal = false;
     this.sustainedNotes = new Set(); // MIDI notes held by sustain pedal
+
+    // CC mapping state
+    this.ccTargets = CC_TARGETS;
+    this.ccTargetMap = CC_TARGET_MAP;
+    this.targetAssignments = new Map(); // targetId -> ccNumber|null
+    this.ccAssignments = new Map(); // ccNumber -> targetId
+    this.midiLearn = null; // { targetId, callback }
+
+    this.restoreMappings();
+  }
+
+  restoreMappings() {
+    this.targetAssignments.clear();
+    this.ccAssignments.clear();
+
+    const saved = this.loadCustomAssignments();
+
+    for (const target of this.ccTargets) {
+      let assigned = undefined;
+      if (saved && safeHasOwn(saved, target.id)) {
+        assigned = saved[target.id];
+      } else {
+        assigned = target.defaultCC;
+      }
+      this.assignTargetInternal(target.id, assigned);
+    }
+  }
+
+  loadCustomAssignments() {
+    if (!isBrowserEnv) {
+      return null;
+    }
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      return parsed;
+    } catch (err) {
+      logger.warn('Failed to load MIDI CC mappings from storage:', err);
+      return null;
+    }
+  }
+
+  persistAssignments() {
+    if (!isBrowserEnv) {
+      return;
+    }
+
+    const payload = {};
+    for (const target of this.ccTargets) {
+      const assigned = this.targetAssignments.get(target.id);
+      if (assigned === undefined) continue;
+      if (assigned === target.defaultCC) continue;
+      if (assigned === null) {
+        payload[target.id] = null;
+      } else {
+        payload[target.id] = assigned;
+      }
+    }
+
+    try {
+      const keys = Object.keys(payload);
+      if (keys.length === 0) {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } else {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      }
+    } catch (err) {
+      logger.warn('Failed to persist MIDI CC mappings:', err);
+    }
+  }
+
+  notifyMappingChange() {
+    if (typeof this.onMappingChange === 'function') {
+      this.onMappingChange(this.getMappingsSnapshot());
+    }
+  }
+
+  assignTargetInternal(targetId, ccNumber) {
+    const normalized =
+      ccNumber === null || ccNumber === undefined
+        ? null
+        : Number.parseInt(ccNumber, 10);
+
+    const prev = this.targetAssignments.get(targetId);
+    if (prev !== undefined) {
+      this.ccAssignments.delete(prev);
+    }
+
+    if (normalized === null || Number.isNaN(normalized)) {
+      this.targetAssignments.set(targetId, null);
+      return;
+    }
+
+    if (normalized < 0 || normalized > 127) {
+      logger.warn(
+        `Ignoring invalid CC assignment for ${targetId}: ${normalized}`
+      );
+      this.targetAssignments.set(targetId, null);
+      return;
+    }
+
+    const conflictingTarget = this.ccAssignments.get(normalized);
+    if (conflictingTarget) {
+      this.targetAssignments.set(conflictingTarget, null);
+    }
+
+    this.targetAssignments.set(targetId, normalized);
+    this.ccAssignments.set(normalized, targetId);
+  }
+
+  assignTarget(targetId, ccNumber) {
+    this.assignTargetInternal(targetId, ccNumber);
+    this.persistAssignments();
+    this.notifyMappingChange();
+  }
+
+  setCCMapping(targetId, ccNumber) {
+    if (!this.ccTargetMap.has(targetId)) {
+      logger.warn(`Unknown CC mapping target: ${targetId}`);
+      return;
+    }
+    if (ccNumber === '' || ccNumber === null || ccNumber === undefined) {
+      this.assignTarget(targetId, null);
+      return;
+    }
+    const normalized = Number.parseInt(ccNumber, 10);
+    if (Number.isNaN(normalized)) {
+      logger.warn(`Invalid CC number for target ${targetId}: ${ccNumber}`);
+      return;
+    }
+    this.assignTarget(targetId, normalized);
+  }
+
+  resetCCMappings() {
+    this.restoreMappings();
+    this.persistAssignments();
+    this.notifyMappingChange();
+  }
+
+  startMidiLearn(targetId, callback) {
+    if (!this.ccTargetMap.has(targetId)) {
+      logger.warn(`Cannot start MIDI learn for unknown target: ${targetId}`);
+      return false;
+    }
+    this.midiLearn = { targetId, callback };
+    return true;
+  }
+
+  cancelMidiLearn() {
+    this.midiLearn = null;
+  }
+
+  getMappingsSnapshot() {
+    return this.ccTargets.map((target) => ({
+      id: target.id,
+      label: target.label,
+      group: target.group,
+      defaultCC: target.defaultCC,
+      cc: this.targetAssignments.get(target.id) ?? null,
+      type: target.type,
+    }));
   }
 
   async init() {
@@ -162,80 +609,71 @@ export class MIDIInput {
     }
   }
 
-  // Map MIDI CC value (0-127) to parameter range
-  mapCC(value, min, max, exponential = false) {
+  scaleCCValue(value, target) {
     const normalized = value / 127;
-    if (exponential) {
-      // Exponential scaling for filter frequencies (20Hz - 20kHz)
+    const min = target.min ?? 0;
+    const max = target.max ?? 1;
+
+    if (target.scaling === 'exponential') {
+      if (min <= 0 || max <= 0) {
+        return min; // avoid invalid calculations
+      }
       return min * Math.pow(max / min, normalized);
     }
+
     return min + normalized * (max - min);
   }
 
-  // Handle MIDI CC messages
   handleCC(ccNumber, value) {
     logger.debug(`MIDI CC: ${ccNumber} = ${value}`);
 
-    switch (ccNumber) {
-      // Modulation Wheel → PWM Depth
-      case 1:
-        this.synth.setParam(
-          'pulseWidthModulationDepth',
-          this.mapCC(value, 0, 1)
-        );
-        break;
+    if (this.midiLearn) {
+      const { targetId, callback } = this.midiLearn;
+      this.midiLearn = null;
+      this.assignTarget(targetId, ccNumber);
+      if (typeof callback === 'function') {
+        callback({ targetId, ccNumber });
+      }
+    }
 
-      // Volume → Master Volume
-      case 7:
-        this.synth.setParam('masterVolume', this.mapCC(value, 0, 1));
-        break;
+    const targetId = this.ccAssignments.get(ccNumber);
+    if (!targetId) {
+      // Ignore unmapped CCs
+      return;
+    }
 
-      // Pan → Pan Position
-      case 10:
-        this.synth.setParam('panningPosition', this.mapCC(value, -1, 1));
-        break;
+    const target = this.ccTargetMap.get(targetId);
+    if (!target) {
+      return;
+    }
 
-      // Expression → Oscillator Volume
-      case 11:
-        this.synth.setParam('oscillatorVolume', this.mapCC(value, 0, 1));
+    switch (target.type) {
+      case 'synthParam': {
+        const scaled = this.scaleCCValue(value, target);
+        this.synth.setParam(target.param, scaled);
         break;
+      }
 
-      // Effect Control 1 → PWM Rate
-      case 12:
-        this.synth.setParam(
-          'pulseWidthModulationRate',
-          this.mapCC(value, 0.1, 10)
-        );
+      case 'fxParam': {
+        if (this.synth.fxController) {
+          const fxState = this.synth.fxController.getEffectState(
+            target.effectType
+          );
+          if (fxState && fxState.enabled) {
+            const scaled = this.scaleCCValue(value, target);
+            this.synth.fxController.setEffectParam(
+              target.effectType,
+              target.param,
+              scaled
+            );
+          }
+        }
         break;
+      }
 
-      // Effect Control 2 → Pan Depth
-      case 13:
-        this.synth.setParam('panningModulationDepth', this.mapCC(value, 0, 1));
-        break;
-
-      // General Purpose 1 → Sub Osc 1 Volume
-      case 16:
-        this.synth.setParam('subOscillatorVolume', this.mapCC(value, 0, 1));
-        break;
-
-      // General Purpose 2 → Osc 2 Volume
-      case 17:
-        this.synth.setParam('oscillator2Volume', this.mapCC(value, 0, 1));
-        break;
-
-      // General Purpose 3 → Sub Osc 2 Volume
-      case 18:
-        this.synth.setParam('subOscillator2Volume', this.mapCC(value, 0, 1));
-        break;
-
-      // General Purpose 4 → Noise Volume
-      case 19:
-        this.synth.setParam('noiseVolume', this.mapCC(value, 0, 1));
-        break;
-
-      // Sustain Pedal
-      case 64:
-        const sustainPressed = value >= 64;
+      case 'sustain': {
+        const threshold = target.threshold ?? 64;
+        const sustainPressed = value >= threshold;
         if (this.sustainPedal && !sustainPressed) {
           // Release all sustained notes
           for (const note of this.sustainedNotes) {
@@ -246,121 +684,23 @@ export class MIDIInput {
         this.sustainPedal = sustainPressed;
         logger.debug(`Sustain pedal: ${sustainPressed ? 'ON' : 'OFF'}`);
         break;
+      }
 
-      // MIDI Panic: All Sound Off (CC 120)
-      case 120:
-        logger.info('MIDI Panic: All Sound Off (CC 120)');
-        this.synth.allNotesOff();
-        this.sustainedNotes.clear();
-        this.sustainPedal = false;
-        break;
-
-      // MIDI Panic: All Notes Off (CC 123)
-      case 123:
-        logger.info('MIDI Panic: All Notes Off (CC 123)');
-        this.synth.allNotesOff();
-        this.sustainedNotes.clear();
-        break;
-
-      // Resonance (Filter Q) → LPF Resonance
-      case 71:
-        this.synth.setParam('filterResonance', this.mapCC(value, 0, 0.95));
-        break;
-
-      // Sound Controller 3 (Release) → Filter Release
-      case 72:
-        this.synth.setParam('filterEnvRelease', this.mapCC(value, 0, 6));
-        break;
-
-      // Attack Time → Amp Envelope Attack
-      case 73:
-        this.synth.setParam('envelopeAttack', this.mapCC(value, 0, 6));
-        break;
-
-      // Brightness (Filter Cutoff) → LPF Cutoff
-      case 74:
-        this.synth.setParam('filterCutoff', this.mapCC(value, 20, 20000, true));
-        break;
-
-      // Sound Controller 6 → Filter Attack
-      case 75:
-        this.synth.setParam('filterEnvAttack', this.mapCC(value, 0, 6));
-        break;
-
-      // Sound Controller 7 → Filter Decay
-      case 76:
-        this.synth.setParam('filterEnvDecay', this.mapCC(value, 0, 6));
-        break;
-
-      // Sound Controller 8 → Filter Sustain
-      case 77:
-        this.synth.setParam('filterEnvSustain', this.mapCC(value, 0, 1));
-        break;
-
-      // General Purpose 5 → Amp Envelope Decay
-      case 80:
-        this.synth.setParam('envelopeDecay', this.mapCC(value, 0, 6));
-        break;
-
-      // General Purpose 6 → Amp Envelope Sustain
-      case 81:
-        this.synth.setParam('envelopeSustain', this.mapCC(value, 0, 1));
-        break;
-
-      // General Purpose 7 → Amp Envelope Release
-      case 82:
-        this.synth.setParam('envelopeRelease', this.mapCC(value, 0, 6));
-        break;
-
-      // Effects Level (Reverb) → Reverb Mix (if FX available)
-      case 91:
-        if (this.synth.fxController) {
-          const fxState = this.synth.fxController.getEffectState('reverb');
-          if (fxState && fxState.enabled) {
-            this.synth.fxController.setEffectParam(
-              'reverb',
-              'mix',
-              this.mapCC(value, 0, 1)
-            );
-          }
+      case 'panic': {
+        if (target.mode === 'allSoundOff') {
+          logger.info('MIDI Panic: All Sound Off (CC 120)');
+          this.synth.allNotesOff();
+          this.sustainedNotes.clear();
+          this.sustainPedal = false;
+        } else if (target.mode === 'allNotesOff') {
+          logger.info('MIDI Panic: All Notes Off (CC 123)');
+          this.synth.allNotesOff();
+          this.sustainedNotes.clear();
         }
         break;
-
-      // Effects Depth (Chorus) → Chorus Mix (if FX available)
-      case 93:
-        if (this.synth.fxController) {
-          const fxState = this.synth.fxController.getEffectState('chorus');
-          if (fxState && fxState.enabled) {
-            this.synth.fxController.setEffectParam(
-              'chorus',
-              'mix',
-              this.mapCC(value, 0, 1)
-            );
-          }
-        }
-        break;
-
-      // Effects Depth (Delay) → Delay Mix (if FX available)
-      case 94:
-        if (this.synth.fxController) {
-          const fxState = this.synth.fxController.getEffectState('delay');
-          if (fxState && fxState.enabled) {
-            this.synth.fxController.setEffectParam(
-              'delay',
-              'mix',
-              this.mapCC(value, 0, 1)
-            );
-          }
-        }
-        break;
-
-      // Effect 1 Depth → HPF Cutoff
-      case 102:
-        this.synth.setParam('hpfCutoff', this.mapCC(value, 20, 20000, true));
-        break;
+      }
 
       default:
-        // Ignore unmapped CCs
         break;
     }
   }
