@@ -149,7 +149,7 @@ describe('Synth class', () => {
 
     it('should handle init failure gracefully', async () => {
       // Mock a failing AudioWorklet.addModule
-      globalThis.window.AudioContext = class FailingAudioContext extends MockAudioContext {
+      class FailingAudioContext extends MockAudioContext {
         constructor(options) {
           super(options);
           this.audioWorklet = {
@@ -158,9 +158,11 @@ describe('Synth class', () => {
             },
           };
         }
-      };
+      }
 
-      setupGlobalAudioMocks();
+      globalThis.window.AudioContext = FailingAudioContext;
+      globalThis.window.webkitAudioContext = FailingAudioContext;
+
       synth = new Synth();
 
       await assert.rejects(
@@ -168,7 +170,8 @@ describe('Synth class', () => {
           await synth.init();
         },
         {
-          message: 'Failed to load worklet',
+          message:
+            'Failed to load audio processor. Your browser may not support AudioWorklet, or there was a network error.',
         }
       );
 
@@ -224,7 +227,7 @@ describe('Synth class', () => {
 
       const message = synth.node.getLastMessage();
       assert.strictEqual(message.type, 'noteOn');
-      assert.strictEqual(message.note, 60);
+      assert.strictEqual(message.midi, 60);
       assert.strictEqual(message.velocity, 0.8);
     });
 
@@ -232,15 +235,15 @@ describe('Synth class', () => {
       // Test valid notes
       synth.noteOn(0, 0.5);
       let message = synth.node.getLastMessage();
-      assert.strictEqual(message.note, 0);
+      assert.strictEqual(message.midi, 0);
 
       synth.noteOn(127, 0.5);
       message = synth.node.getLastMessage();
-      assert.strictEqual(message.note, 127);
+      assert.strictEqual(message.midi, 127);
 
       synth.noteOn(60, 0.5);
       message = synth.node.getLastMessage();
-      assert.strictEqual(message.note, 60);
+      assert.strictEqual(message.midi, 60);
     });
 
     it('should reject invalid MIDI notes', () => {
@@ -281,7 +284,7 @@ describe('Synth class', () => {
 
       const message = synth.node.getLastMessage();
       assert.strictEqual(message.type, 'noteOff');
-      assert.strictEqual(message.note, 60);
+      assert.strictEqual(message.midi, 60);
     });
 
     it('should validate MIDI note range', () => {
