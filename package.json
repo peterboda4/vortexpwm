@@ -8,11 +8,16 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "build": "node build.js",
-    "test": "node --test",
-    "test:watch": "node --test --watch",
+    "test": "node --test tests/*.test.js tests/effects/*.test.js",
+    "test:watch": "node --test --watch tests/*.test.js tests/effects/*.test.js",
+    "test:browser": "playwright test",
+    "test:browser:ui": "playwright test --ui",
+    "test:browser:debug": "playwright test --debug",
+    "test:all": "npm run test && npm run test:browser",
     "create-effect": "node scripts/create-effect.js"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "prettier": "^3.4.2"
   }
 }
