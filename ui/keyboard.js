@@ -153,7 +153,26 @@ export function initKeyboard(synth) {
 
   const downSet = new Set();
 
+  // Helper to check if we should ignore keyboard events (e.g., when typing in text fields)
+  const shouldIgnoreKeyboardEvent = (e) => {
+    // Ignore if target is an editable element
+    const target = e.target;
+    const tagName = target.tagName.toLowerCase();
+    if (
+      tagName === 'input' ||
+      tagName === 'textarea' ||
+      tagName === 'select' ||
+      target.contentEditable === 'true'
+    ) {
+      return true;
+    }
+    return false;
+  };
+
   window.addEventListener('keydown', (e) => {
+    // Ignore keyboard shortcuts when typing in text fields
+    if (shouldIgnoreKeyboardEvent(e)) return;
+
     const k = e.key.toLowerCase();
     if (!keyToMidi.has(k)) return;
     if (downSet.has(k)) return;
@@ -165,6 +184,9 @@ export function initKeyboard(synth) {
   });
 
   window.addEventListener('keyup', (e) => {
+    // Ignore keyboard shortcuts when typing in text fields
+    if (shouldIgnoreKeyboardEvent(e)) return;
+
     const k = e.key.toLowerCase();
     if (!keyToMidi.has(k)) return;
     e.preventDefault();

@@ -251,6 +251,23 @@ if (DEBUG) {
 
 console.log(`✓ Patched ${modulePaths.length} modules`);
 
+// Validate that all modules were successfully converted to data URLs
+const missingModules = [];
+for (const modulePath of modulePaths) {
+  const fullPath = path.join(__dirname, modulePath);
+  if (!moduleMap.has(fullPath)) {
+    missingModules.push(modulePath);
+  }
+}
+
+if (missingModules.length > 0) {
+  console.error('❌ Build validation failed: Missing modules in moduleMap:');
+  missingModules.forEach((m) => console.error(`  - ${m}`));
+  process.exit(1);
+}
+
+console.log('✓ All modules validated in moduleMap');
+
 // Read worklet files
 const workletSynthProcessor = fs.readFileSync(
   path.join(__dirname, 'worklet/synth-processor.js'),
@@ -264,6 +281,36 @@ const workletFxChainProcessor = fs.readFileSync(
 // Get the patched main.js data URL
 const mainJsPath = path.join(__dirname, 'main.js');
 const mainJsDataUrl = moduleMap.get(mainJsPath);
+
+if (!mainJsDataUrl) {
+  console.error('❌ Build validation failed: main.js data URL not found');
+  process.exit(1);
+}
+
+// Validate required effect modules
+const requiredEffects = [
+  'fx/effects/hardclip.js',
+  'fx/effects/phaser.js',
+  'fx/effects/bitcrusher.js',
+  'fx/effects/chorus.js',
+  'fx/effects/delay.js',
+  'fx/effects/reverb.js',
+  'fx/effects/flanger.js',
+  'fx/effects/tremolo.js',
+  'fx/effects/autowah.js',
+  'fx/effects/freqshifter.js',
+  'fx/effects/pitchshifter.js',
+];
+
+for (const effect of requiredEffects) {
+  const effectPath = path.join(__dirname, effect);
+  if (!moduleMap.has(effectPath)) {
+    console.error(`❌ Build validation failed: Required effect ${effect} not found`);
+    process.exit(1);
+  }
+}
+
+console.log('✓ All required effects validated');
 
 // Create worklet setup code
 const workletSetup = `
@@ -341,8 +388,39 @@ if (!fs.existsSync(path.join(__dirname, 'dist'))) {
   fs.mkdirSync(path.join(__dirname, 'dist'));
 }
 
+// Validate final HTML before writing
+if (!finalHtml.includes('__workletURLs')) {
+  console.error('❌ Build validation failed: Worklet setup code not found in final HTML');
+  process.exit(1);
+}
+
+if (!finalHtml.includes('data:application/javascript;base64,')) {
+  console.error('❌ Build validation failed: No data URLs found in final HTML');
+  process.exit(1);
+}
+
+// Check that CSS was inlined
+if (finalHtml.includes('link rel="stylesheet"')) {
+  console.error('❌ Build validation failed: CSS not properly inlined');
+  process.exit(1);
+}
+
+// Check that main.js script tag was replaced
+if (finalHtml.includes('src="./main.js"')) {
+  console.error('❌ Build validation failed: main.js script not replaced with inline code');
+  process.exit(1);
+}
+
+console.log('✓ Final HTML validated');
+
 // Write final HTML
 fs.writeFileSync(path.join(__dirname, 'dist/index.html'), finalHtml);
+
+// Verify file was written
+if (!fs.existsSync(path.join(__dirname, 'dist/index.html'))) {
+  console.error('❌ Build validation failed: dist/index.html was not created');
+  process.exit(1);
+}
 
 const fileSizeKB = (finalHtml.length / 1024).toFixed(1);
 console.log('✅ Build complete: dist/index.html');
@@ -353,3 +431,4 @@ console.log('   • ES modules as data URLs (base64)');
 console.log('   • AudioWorklet processors as Blob URLs');
 console.log('   • 11 audio effects included');
 console.log('   • Full MIDI, keyboard, and FX chain support');
+console.log('✓ All build validations passed');

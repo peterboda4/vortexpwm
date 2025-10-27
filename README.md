@@ -76,6 +76,7 @@ The generated file can be opened directly in any browser (requires localhost or 
 To deploy on an external FTP server:
 
 1. Build the distribution:
+
    ```bash
    npm run build
    ```
@@ -95,6 +96,7 @@ To deploy on an external FTP server:
 ### File Size
 
 The built `dist/index.html` is approximately **273 KB** and contains:
+
 - Complete synthesizer engine
 - 11 audio effects (Hard Clip, Phaser, Bit Crusher, Chorus, Delay, Reverb, Flanger, Tremolo, Auto Wah, Freq Shifter, Pitch Shifter)
 - All UI components
@@ -102,7 +104,71 @@ The built `dist/index.html` is approximately **273 KB** and contains:
 
 ## Technical
 
-- **Voices**: 8-voice polyphony with voice stealing
-- **Sample Rate**: Browser default (typically 44.1kHz)
-- **Latency**: Interactive latency hint
+- **Voices**: Configurable polyphony (default: 8 voices) with intelligent voice stealing
+- **Sample Rate**: Browser default (typically 44.1kHz or 48kHz) with automatic validation
+- **Latency**: Interactive latency hint for low-latency performance
 - **Anti-aliasing**: PolyBLEP for bandlimited synthesis
+- **Browser Support**: Chrome 66+, Edge 79+, Firefox 76+, Safari 14.1+ (automatic compatibility check)
+- **Error Handling**: Comprehensive error handling with user-friendly messages
+- **State Management**: Automatic AudioContext resume after tab switching/sleep cycles
+
+## Configuration
+
+- **Voice Limit**: Change `MAX_VOICES` constant in [worklet/synth-processor.js](worklet/synth-processor.js) (line 9)
+- **Build Validation**: Automatic validation ensures production builds are complete and functional
+
+## Dev setup
+
+- Requirements: Node.js (LTS recommended). The project uses ES modules (`type: "module"`) and a small build script.
+- Install dependencies:
+
+```bash
+npm install
+```
+
+- Running locally:
+  - The app is a static web app — open `index.html` in a secure context (HTTPS or `http://localhost`).
+  - Start a simple local server (example using Python or http-server):
+
+```bash
+# using Node http-server (install if needed):
+npx http-server . -p 8080
+
+# or using Python 3:
+python3 -m http.server 8080
+```
+
+- Open http://localhost:8080 in a Chromium-based browser for best AudioWorklet support. Click "Start Audio" in the UI to resume the AudioContext.
+
+## Tests
+
+- The repo has a minimal test runner using Node's built-in test runner. To run tests:
+
+```bash
+npm test
+
+# Run in watch mode:
+npm run test:watch
+```
+
+- To run a single test file (example):
+
+```bash
+node --test tests/music.test.js
+```
+
+## Contributing
+
+- Workflow:
+  1.  Fork the repository and create a feature branch: `git checkout -b feature/your-change`.
+  2.  Run the test suite and formatting locally before opening a PR:
+
+```bash
+npm install
+npm run format
+npm test
+```
+
+- Coding style: follow the existing project style. Run `npm run format` to apply Prettier formatting.
+- Keep changes focused and avoid committing the built `dist/index.html` file — builds are large and generated.
+- When opening a PR, include a short description, a link to any reproducer, and note if the change affects audio latency or timing (these are sensitive areas).

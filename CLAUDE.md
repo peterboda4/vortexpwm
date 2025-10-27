@@ -70,12 +70,13 @@ The synth follows a three-layer architecture:
 
 ### Voice Management
 
-8-voice polyphony with intelligent voice allocation:
+Polyphonic voice allocation with intelligent voice stealing (default: 8 voices):
 
 - **Free voice**: First priority - uses any idle voice
 - **Voice stealing**: Steals voices in release stage, then any active voice
 - **Retrigger**: If same MIDI note is already playing, retrigger that voice
 - **Note tracking**: Map of MIDI note → voice index for O(1) note-off lookup
+- **Configuration**: Voice limit is configurable via `MAX_VOICES` constant at the top of [worklet/synth-processor.js](worklet/synth-processor.js)
 
 ### MIDI Integration
 
@@ -123,8 +124,8 @@ Each slot has: destination (0-4) and amount (-1 to +1).
 1. **Development vs Production**: Development uses ES modules loaded directly; production uses a monolithic build
 2. **Secure context required**: AudioWorklet and Web MIDI only work over HTTPS or localhost
 3. **Single file worklet**: [worklet/synth-processor.js](worklet/synth-processor.js) must be self-contained (no imports) due to AudioWorklet scope limitations
-4. **Voice limit**: Hard-coded to 8 voices for performance and CPU headroom
-5. **Sample rate**: Uses browser's default (typically 44.1kHz), not configurable
+4. **Voice limit**: Configurable via `MAX_VOICES` constant at the top of [worklet/synth-processor.js](worklet/synth-processor.js) (default: 8 voices for performance and CPU headroom)
+5. **Sample rate**: Uses browser's default sample rate (typically 44.1kHz or 48kHz). All timing calculations are sample-rate independent.
 6. **Build process**: Automatic module collection - no need to manually maintain module lists when adding new files
 
 ## Parameter Ranges

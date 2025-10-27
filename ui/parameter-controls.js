@@ -9,14 +9,45 @@ export function initParameterControls(synth) {
     return element;
   };
 
-  // Bind slider helpers
+  // Throttle parameter updates to avoid overwhelming audio thread
+  // Update display immediately but throttle actual parameter changes
+  const throttle = (fn, delay) => {
+    let lastCall = 0;
+    let timeoutId = null;
+    let lastArgs = null;
+
+    return function (...args) {
+      const now = Date.now();
+      lastArgs = args;
+
+      if (now - lastCall >= delay) {
+        lastCall = now;
+        fn.apply(this, args);
+      } else {
+        // Schedule the final call after delay
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          lastCall = Date.now();
+          fn.apply(this, lastArgs);
+        }, delay);
+      }
+    };
+  };
+
+  // Bind slider helpers with throttled parameter updates
   const bind = (id, param, fmt = (v) => v.toString()) => {
     const el = byId(id);
     const val = byId(id + 'Val');
     if (!el || !val) return;
+
+    // Throttle parameter updates to 16ms (~60fps)
+    const throttledSetParam = throttle((value) => {
+      synth.setParam(param, value);
+    }, 16);
+
     const apply = (v) => {
       val.textContent = fmt(v);
-      synth.setParam(param, +v);
+      throttledSetParam(+v);
     };
     apply(el.value);
     el.addEventListener('input', (e) => apply(e.target.value));
@@ -77,10 +108,15 @@ export function initParameterControls(synth) {
     const el = byId(id);
     const val = byId(id + 'Val');
     if (!el || !val) return;
+
+    const throttledSetParam = throttle((value) => {
+      synth.setParam(param, value / 100.0);
+    }, 16);
+
     const apply = (v) => {
       const percent = Math.round(+v);
       val.textContent = percent;
-      synth.setParam(param, +v / 100.0); // Convert to -1.0 to +1.0
+      throttledSetParam(+v);
     };
     apply(el.value);
     el.addEventListener('input', (e) => apply(e.target.value));
@@ -92,6 +128,11 @@ export function initParameterControls(synth) {
     const el = byId(id);
     const val = byId(id + 'Val');
     if (!el || !val) return;
+
+    const throttledSetParam = throttle((expValue) => {
+      synth.setParam(param, expValue);
+    }, 16);
+
     const apply = (sliderValue) => {
       const minFreq = 20;
       const maxFreq = 20000;
@@ -109,7 +150,7 @@ export function initParameterControls(synth) {
       }
 
       val.textContent = fmt(expValue);
-      synth.setParam(param, expValue);
+      throttledSetParam(expValue);
     };
     apply(el.value);
     el.addEventListener('input', (e) => apply(e.target.value));

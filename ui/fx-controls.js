@@ -157,7 +157,7 @@ export class FXControls {
     ).element;
   }
 
-  addEffectToUI(instanceId, effectId) {
+  addEffectToUI(instanceId, effectId, position = -1) {
     const metadata = this.fxController.getEffectMetadata(effectId);
 
     const item = document.createElement('div');
@@ -195,7 +195,14 @@ export class FXControls {
     `;
 
     this.initEffectControls(item, instanceId, effectId);
-    this.chainContainer.appendChild(item);
+
+    // Insert at the correct position to match audio processing order
+    const items = this.chainContainer.querySelectorAll('.fx-chain-item');
+    if (position >= 0 && position < items.length) {
+      this.chainContainer.insertBefore(item, items[position]);
+    } else {
+      this.chainContainer.appendChild(item);
+    }
   }
 
   initEffectControls(item, instanceId, effectId) {
@@ -259,9 +266,60 @@ export class FXControls {
           `[data-instance-id="${e.detail.instanceId}"]`
         );
         if (!existing) {
-          this.addEffectToUI(e.detail.instanceId, e.detail.effectId);
+          this.addEffectToUI(
+            e.detail.instanceId,
+            e.detail.effectId,
+            e.detail.position
+          );
         }
+      } else if (e.detail.type === 'removed') {
+        // Remove the effect panel from UI
+        const item = this.chainContainer.querySelector(
+          `[data-instance-id="${e.detail.instanceId}"]`
+        );
+        if (item) {
+          item.remove();
+        }
+      } else if (e.detail.type === 'cleared') {
+        // Clear all effect panels
+        this.chainContainer.innerHTML = '';
       }
     });
+
+    // Listen for FX errors and show user feedback
+    window.addEventListener('fxError', (e) => {
+      console.error('FX Error:', e.detail.message);
+      this.showErrorToast(e.detail.message);
+    });
+  }
+
+  // Show error toast notification
+  showErrorToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'fx-error-toast';
+    toast.textContent = `FX Error: ${message}`;
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #ff4444;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      z-index: 10000;
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      max-width: 300px;
+      animation: slideIn 0.3s ease-out;
+    `;
+
+    document.body.appendChild(toast);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      toast.style.animation = 'slideOut 0.3s ease-in';
+      setTimeout(() => toast.remove(), 300);
+    }, 5000);
   }
 }
