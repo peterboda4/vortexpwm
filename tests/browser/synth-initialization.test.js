@@ -6,55 +6,44 @@ test.describe('AudioWorklet Synth Initialization', () => {
     await page.goto('/');
 
     // Check that the page title is correct
-    await expect(page).toHaveTitle(/PWM Synth/);
+    await expect(page).toHaveTitle(/VortexPWM/);
 
     // Check that main UI elements are present
-    await expect(page.locator('#startButton')).toBeVisible();
-    await expect(page.locator('#controls')).toBeVisible();
+    await expect(page.locator('#start')).toBeVisible();
+    await expect(page.locator('header')).toBeVisible();
   });
 
   test('should initialize AudioContext when Start Audio is clicked', async ({
     page,
   }) => {
+    // Set up error listener before page load
+    const pageErrors = [];
+    page.on('pageerror', (error) => {
+      pageErrors.push(error.message);
+    });
+
     await page.goto('/');
 
     // Click the Start Audio button
-    const startButton = page.locator('#startButton');
+    const startButton = page.locator('#start');
     await startButton.click();
 
     // Wait for AudioContext to be initialized
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1500);
 
-    // Check that the button text changed or is disabled
+    // Check that the button text changed and is disabled
     const buttonText = await startButton.textContent();
     expect(buttonText).toContain('Audio');
 
-    // Check console for initialization messages
-    const messages = [];
-    page.on('console', (msg) => {
-      messages.push(msg.text());
-    });
+    const isDisabled = await startButton.isDisabled();
+    expect(isDisabled).toBe(true);
 
-    // Reload and start again to capture console messages
-    await page.reload();
+    // Verify voice count element is visible
+    const voiceCount = page.locator('#voiceCount');
+    await expect(voiceCount).toBeVisible();
 
-    // Set up console listener before clicking
-    const consoleMessages = [];
-    page.on('console', (msg) => {
-      consoleMessages.push(msg.text());
-    });
-
-    await page.locator('#startButton').click();
-    await page.waitForTimeout(2000);
-
-    // Check that AudioWorklet was loaded
-    const hasWorkletMessage = consoleMessages.some(
-      (msg) => msg.includes('AudioWorklet') || msg.includes('synth-processor')
-    );
-
-    // This may not always be logged, so we just check that no errors occurred
-    const hasError = consoleMessages.some((msg) => msg.includes('Error'));
-    expect(hasError).toBe(false);
+    // Should not have page errors
+    expect(pageErrors).toHaveLength(0);
   });
 
   test('should not throw errors during initialization', async ({ page }) => {
@@ -64,7 +53,7 @@ test.describe('AudioWorklet Synth Initialization', () => {
     });
 
     await page.goto('/');
-    await page.locator('#startButton').click();
+    await page.locator('#start').click();
     await page.waitForTimeout(2000);
 
     expect(errors).toHaveLength(0);
@@ -78,18 +67,19 @@ test.describe('AudioWorklet Synth Initialization', () => {
 
     await page.goto('/');
 
-    const startButton = page.locator('#startButton');
+    const startButton = page.locator('#start');
 
-    // Try to click multiple times
+    // Click the start button
     await startButton.click();
     await page.waitForTimeout(500);
 
-    // Try clicking again (should be protected by multiple init guard)
-    if (await startButton.isVisible()) {
-      await startButton.click();
-    }
+    // Check that button is now disabled (correct behavior)
+    const isDisabled = await startButton.isDisabled();
+    expect(isDisabled).toBe(true);
 
-    await page.waitForTimeout(1000);
+    // Button text should indicate audio is running
+    const buttonText = await startButton.textContent();
+    expect(buttonText).toContain('Audio');
 
     // Should not have thrown errors
     expect(errors).toHaveLength(0);
@@ -97,7 +87,7 @@ test.describe('AudioWorklet Synth Initialization', () => {
 
   test('should display voice count meter', async ({ page }) => {
     await page.goto('/');
-    await page.locator('#startButton').click();
+    await page.locator('#start').click();
     await page.waitForTimeout(1000);
 
     // Check for voice count display element

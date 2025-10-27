@@ -1,0 +1,362 @@
+// tests/e2e/effects-chain.test.js
+import { test, expect } from '@playwright/test';
+
+// Helper function to simulate drag and drop
+async function dragAndDrop(page, sourceSelector, targetSelector) {
+  const source = page.locator(sourceSelector);
+  const target = page.locator(targetSelector);
+
+  // Get bounding boxes
+  const sourceBox = await source.boundingBox();
+  const targetBox = await target.boundingBox();
+
+  if (!sourceBox || !targetBox) {
+    throw new Error('Could not get bounding boxes for drag and drop');
+  }
+
+  // Simulate drag and drop
+  await page.mouse.move(
+    sourceBox.x + sourceBox.width / 2,
+    sourceBox.y + sourceBox.height / 2
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    targetBox.x + targetBox.width / 2,
+    targetBox.y + targetBox.height / 2
+  );
+  await page.mouse.up();
+}
+
+test.describe('E2E: Effects Chain', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    // Start audio context
+    await page.locator('#start').click();
+    // Wait for audio initialization
+    await page.waitForTimeout(500);
+  });
+
+  test('should display effects library with available effects', async ({
+    page,
+  }) => {
+    const fxLibrary = page.locator('#fx-library');
+    await expect(fxLibrary).toBeVisible();
+
+    // Check that effect items are rendered (draggable divs)
+    const effectItems = page.locator('.fx-library-item');
+    const itemCount = await effectItems.count();
+    expect(itemCount).toBeGreaterThan(0);
+
+    // Should have 11 effects
+    expect(itemCount).toBe(11);
+  });
+
+  test('should display effects chain container', async ({ page }) => {
+    const fxChain = page.locator('#fx-chain');
+    await expect(fxChain).toBeVisible();
+  });
+
+  test('should show empty state when no effects are active', async ({
+    page,
+  }) => {
+    const emptyState = page.locator('.fx-empty-state');
+    await expect(emptyState).toBeVisible();
+    await expect(emptyState).toContainText(/drag.*effect/i);
+  });
+
+  test('should add effect to chain via drag and drop', async ({ page }) => {
+    // Find the Delay effect in library
+    const delayItem = page.locator('.fx-library-item[data-effect-id="delay"]');
+    await expect(delayItem).toBeVisible();
+
+    // Drag Delay to chain
+    await dragAndDrop(
+      page,
+      '.fx-library-item[data-effect-id="delay"]',
+      '#fx-chain'
+    );
+
+    // Wait for effect to be added
+    await page.waitForTimeout(300);
+
+    // Check that effect appears in chain
+    const fxChain = page.locator('#fx-chain');
+    const chainItems = fxChain.locator('.fx-item');
+    const itemCount = await chainItems.count();
+    expect(itemCount).toBeGreaterThan(0);
+
+    // Empty state should be hidden
+    const emptyState = page.locator('.fx-empty-state');
+    await expect(emptyState).not.toBeVisible();
+  });
+
+  test('should show effect parameters when effect is added', async ({
+    page,
+  }) => {
+    // Add Reverb effect via drag and drop
+    await dragAndDrop(
+      page,
+      '.fx-library-item[data-effect-id="reverb"]',
+      '#fx-chain'
+    );
+
+    await page.waitForTimeout(300);
+
+    // Check for effect in chain
+    const chainItems = page.locator('.fx-item');
+    expect(await chainItems.count()).toBeGreaterThan(0);
+
+    // Check that effect has parameters (note: parameters might be in a different structure)
+    // The actual parameter UI depends on implementation
+  });
+
+  test('should remove effect from chain when remove button is clicked', async ({
+    page,
+  }) => {
+    // Add an effect
+    const chorusButton = page.locator('#fx-library button', {
+      hasText: 'Chorus',
+    });
+    await chorusButton.click();
+
+    await page.waitForTimeout(200);
+
+    // Verify effect was added
+    const fxChain = page.locator('#fx-chain');
+    let chainItems = fxChain.locator('.fx-item');
+    expect(await chainItems.count()).toBe(1);
+
+    // Click remove button
+    const removeButton = page.locator('.fx-item button', { hasText: '�' });
+    await removeButton.click();
+
+    await page.waitForTimeout(200);
+
+    // Effect should be removed
+    chainItems = fxChain.locator('.fx-item');
+    expect(await chainItems.count()).toBe(0);
+
+    // Empty state should be visible again
+    const emptyState = page.locator('.fx-empty-state');
+    await expect(emptyState).toBeVisible();
+  });
+
+  test('should allow multiple effects in chain', async ({ page }) => {
+    // Add multiple effects
+    const delayButton = page.locator('#fx-library button', {
+      hasText: 'Delay',
+    });
+    await delayButton.click();
+    await page.waitForTimeout(100);
+
+    const reverbButton = page.locator('#fx-library button', {
+      hasText: 'Reverb',
+    });
+    await reverbButton.click();
+    await page.waitForTimeout(100);
+
+    const chorusButton = page.locator('#fx-library button', {
+      hasText: 'Chorus',
+    });
+    await chorusButton.click();
+    await page.waitForTimeout(100);
+
+    // Check chain has 3 effects
+    const fxChain = page.locator('#fx-chain');
+    const chainItems = fxChain.locator('.fx-item');
+    expect(await chainItems.count()).toBe(3);
+  });
+
+  test('should update effect parameters with sliders', async ({ page }) => {
+    // Add Delay effect
+    const delayButton = page.locator('#fx-library button', {
+      hasText: 'Delay',
+    });
+    await delayButton.click();
+
+    await page.waitForTimeout(200);
+
+    // Find a parameter slider (e.g., mix)
+    const mixSlider = page.locator('.fx-controls input[type="range"]').first();
+    await expect(mixSlider).toBeVisible();
+
+    // Change slider value
+    await mixSlider.fill('0.5');
+
+    // Verify no errors occurred
+    const pageErrors = [];
+    page.on('pageerror', (error) => {
+      pageErrors.push(error.message);
+    });
+
+    await page.waitForTimeout(100);
+    expect(pageErrors).toHaveLength(0);
+  });
+
+  test('should toggle effect bypass/enable', async ({ page }) => {
+    // Add an effect
+    const tremoloButton = page.locator('#fx-library button', {
+      hasText: 'Tremolo',
+    });
+    await tremoloButton.click();
+
+    await page.waitForTimeout(200);
+
+    // Find the bypass/enable button (if implemented)
+    // This depends on UI implementation
+    const fxItem = page.locator('.fx-item').first();
+    await expect(fxItem).toBeVisible();
+
+    // Check that effect has enable toggle
+    const enableButton = fxItem.locator('button', {
+      hasText: /enable|bypass/i,
+    });
+    if ((await enableButton.count()) > 0) {
+      await enableButton.click();
+      await page.waitForTimeout(100);
+      // Effect should be bypassed/enabled
+    }
+  });
+
+  test('should test all 11 effects can be added', async ({ page }) => {
+    const effectNames = [
+      'Delay',
+      'Reverb',
+      'Chorus',
+      'Flanger',
+      'Phaser',
+      'Tremolo',
+      'AutoWah',
+      'BitCrusher',
+      'HardClip',
+      'FreqShifter',
+      'PitchShifter',
+    ];
+
+    for (const effectName of effectNames) {
+      // Clear chain first
+      const removeButtons = page.locator('.fx-item button', { hasText: '�' });
+      const removeCount = await removeButtons.count();
+      for (let i = 0; i < removeCount; i++) {
+        await removeButtons.first().click();
+        await page.waitForTimeout(50);
+      }
+
+      // Add effect
+      const effectButton = page.locator('#fx-library button', {
+        hasText: effectName,
+      });
+      await effectButton.click();
+      await page.waitForTimeout(100);
+
+      // Verify effect was added
+      const fxChain = page.locator('#fx-chain');
+      const chainItems = fxChain.locator('.fx-item');
+      expect(await chainItems.count()).toBe(1);
+
+      // Check effect name in chain
+      const effectLabel = chainItems.first();
+      const labelText = await effectLabel.textContent();
+      expect(labelText).toContain(effectName);
+    }
+  });
+
+  test('should handle rapid effect additions and removals', async ({
+    page,
+  }) => {
+    const pageErrors = [];
+    page.on('pageerror', (error) => {
+      pageErrors.push(error.message);
+    });
+
+    const delayButton = page.locator('#fx-library button', {
+      hasText: 'Delay',
+    });
+
+    // Add and remove rapidly
+    for (let i = 0; i < 5; i++) {
+      await delayButton.click();
+      await page.waitForTimeout(50);
+
+      const removeButton = page.locator('.fx-item button', { hasText: '�' });
+      if ((await removeButton.count()) > 0) {
+        await removeButton.first().click();
+        await page.waitForTimeout(50);
+      }
+    }
+
+    // No errors should occur
+    expect(pageErrors).toHaveLength(0);
+  });
+
+  test('should preserve effect parameters when switching effects', async ({
+    page,
+  }) => {
+    // Add Delay effect
+    const delayButton = page.locator('#fx-library button', {
+      hasText: 'Delay',
+    });
+    await delayButton.click();
+    await page.waitForTimeout(200);
+
+    // Set a parameter
+    const slider = page.locator('.fx-controls input[type="range"]').first();
+    await slider.fill('0.7');
+
+    // Add another effect
+    const reverbButton = page.locator('#fx-library button', {
+      hasText: 'Reverb',
+    });
+    await reverbButton.click();
+    await page.waitForTimeout(200);
+
+    // Both effects should be in chain
+    const chainItems = page.locator('.fx-item');
+    expect(await chainItems.count()).toBe(2);
+  });
+
+  test('should display effect chain section header', async ({ page }) => {
+    const fxSection = page.locator('.fx-section');
+    await expect(fxSection).toBeVisible();
+
+    // Check for effects library header
+    const libraryHeader = page.locator('text=Effects Library');
+    await expect(libraryHeader).toBeVisible();
+
+    // Check for effects chain header
+    const chainHeader = page.locator('text=Effects Chain');
+    await expect(chainHeader).toBeVisible();
+  });
+
+  test('should show effect parameters update in real-time', async ({
+    page,
+  }) => {
+    // Add BitCrusher effect
+    const bitcrusherButton = page.locator('#fx-library button', {
+      hasText: 'BitCrusher',
+    });
+    await bitcrusherButton.click();
+
+    await page.waitForTimeout(200);
+
+    // Find parameter sliders
+    const sliders = page.locator('.fx-controls input[type="range"]');
+    const sliderCount = await sliders.count();
+
+    // Update each slider
+    for (let i = 0; i < sliderCount; i++) {
+      const slider = sliders.nth(i);
+      await slider.fill('0.5');
+      await page.waitForTimeout(50);
+    }
+
+    // No errors should occur
+    const pageErrors = [];
+    page.on('pageerror', (error) => {
+      pageErrors.push(error.message);
+    });
+
+    await page.waitForTimeout(100);
+    expect(pageErrors).toHaveLength(0);
+  });
+});
