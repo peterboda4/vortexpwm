@@ -19,7 +19,8 @@ test.describe('E2E: Audio Output Validation', () => {
       };
 
       // Intercept AudioContext creation to add analyser
-      const OriginalAudioContext = window.AudioContext || window.webkitAudioContext;
+      const OriginalAudioContext =
+        window.AudioContext || window.webkitAudioContext;
       window.AudioContext = function (...args) {
         const ctx = new OriginalAudioContext(...args);
         window.__audioContext = ctx;
@@ -59,7 +60,9 @@ test.describe('E2E: Audio Output Validation', () => {
       // Audio analysis helpers
       window.__getTimeDomainData = function () {
         if (!window.__audioCapture.analyser) return null;
-        const dataArray = new Float32Array(window.__audioCapture.analyser.fftSize);
+        const dataArray = new Float32Array(
+          window.__audioCapture.analyser.fftSize
+        );
         window.__audioCapture.analyser.getFloatTimeDomainData(dataArray);
         return Array.from(dataArray);
       };
@@ -197,7 +200,9 @@ test.describe('E2E: Audio Output Validation', () => {
     expect(analysis.rms).toBeGreaterThan(0.001);
   });
 
-  test('should validate waveform amplitude is within range', async ({ page }) => {
+  test('should validate waveform amplitude is within range', async ({
+    page,
+  }) => {
     const c4Key = page.locator('[data-midi="60"]');
     await c4Key.click();
 
@@ -346,7 +351,9 @@ test.describe('E2E: Audio Output Validation', () => {
     expect(isClipping).toBe(false);
   });
 
-  test('should modify frequency spectrum with filter cutoff', async ({ page }) => {
+  test('should modify frequency spectrum with filter cutoff', async ({
+    page,
+  }) => {
     // Set high filter cutoff (bright sound)
     await page.locator('#filterCutoff').fill('10000');
     await page.waitForTimeout(100);
@@ -506,7 +513,9 @@ test.describe('E2E: Audio Output Validation', () => {
     expect(withSubCentroid).toBeLessThan(withoutSubCentroid * 1.2);
   });
 
-  test('should validate audio output consistency over time', async ({ page }) => {
+  test('should validate audio output consistency over time', async ({
+    page,
+  }) => {
     const c4Key = page.locator('[data-midi="60"]');
     await c4Key.click();
 
@@ -600,7 +609,9 @@ test.describe('E2E: Audio Effects Validation', () => {
     await page.waitForTimeout(500);
   });
 
-  test('should validate audio pipeline with effects chain', async ({ page }) => {
+  test('should validate audio pipeline with effects chain', async ({
+    page,
+  }) => {
     // This test would verify effects are processing audio
     // Implementation depends on effects UI structure
     expect(true).toBe(true);

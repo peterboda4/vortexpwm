@@ -232,7 +232,8 @@ class Envelope {
         this.state = 'decay';
       } else {
         // Divide by ~4.6 so displayed time matches actual time to reach ~99%
-        const attackCoeff = 1.0 - Math.exp(-1.0 / ((attack / 4.6) * sampleRate));
+        const attackCoeff =
+          1.0 - Math.exp(-1.0 / ((attack / 4.6) * sampleRate));
         this.value += (1.0 - this.value) * attackCoeff;
         if (this.value >= 0.9999) {
           this.value = 1.0;
@@ -271,7 +272,8 @@ class Envelope {
         this.state = 'idle';
         return 0.0;
       } else {
-        const releaseCoeff = 1.0 - Math.exp(-1.0 / ((release / 4.6) * sampleRate));
+        const releaseCoeff =
+          1.0 - Math.exp(-1.0 / ((release / 4.6) * sampleRate));
         this.value += (envFloor - this.value) * releaseCoeff;
         if (this.value <= envFloor * 1.5) {
           this.value = 0.0;
@@ -379,7 +381,9 @@ class Oscillator {
         return saw;
 
       case 1: // Triangle
-        return this.phase < 0.5 ? 4.0 * this.phase - 1.0 : 3.0 - 4.0 * this.phase;
+        return this.phase < 0.5
+          ? 4.0 * this.phase - 1.0
+          : 3.0 - 4.0 * this.phase;
 
       case 2: // Sine
         return Math.sin(2 * Math.PI * this.phase);
@@ -481,7 +485,9 @@ class Voice {
    * Check if voice is available for stealing
    */
   isStealable() {
-    return !this.active || this.ampEnv.state === 'release' || this.ampEnv.isIdle();
+    return (
+      !this.active || this.ampEnv.state === 'release' || this.ampEnv.isIdle()
+    );
   }
 }
 
@@ -1079,11 +1085,13 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
           return;
         }
         // Add to queue if not full
-        if (!this.messageQueue.push({
-          type: 'noteOn',
-          midi: msg.midi | 0,
-          velocity: Math.max(0, Math.min(1, +msg.velocity)),
-        })) {
+        if (
+          !this.messageQueue.push({
+            type: 'noteOn',
+            midi: msg.midi | 0,
+            velocity: Math.max(0, Math.min(1, +msg.velocity)),
+          })
+        ) {
           console.warn('Message queue full, dropping noteOn message');
         }
       } else if (msg.type === 'noteOff') {
@@ -1093,10 +1101,12 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
           return;
         }
         // Add to queue if not full
-        if (!this.messageQueue.push({
-          type: 'noteOff',
-          midi: msg.midi | 0,
-        })) {
+        if (
+          !this.messageQueue.push({
+            type: 'noteOff',
+            midi: msg.midi | 0,
+          })
+        ) {
           console.warn('Message queue full, dropping noteOff message');
         }
       } else if (msg.type === 'aftertouch') {
@@ -1259,12 +1269,12 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     const osc2PhInc = osc2Freq / sr;
 
     // Advance Osc2 phase first
-    voice.osc2Phase += osc2PhInc;
-    voice.osc2Phase %= 1.0;
+    voice.osc2.phase += osc2PhInc;
+    voice.osc2.phase %= 1.0;
 
     // Generate Osc2 raw waveform for FM modulation
     const osc2Raw = this.generateWaveform(
-      voice.osc2Phase,
+      voice.osc2.phase,
       osc2PhInc,
       osc2WaveformNow
     );
@@ -1298,26 +1308,26 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     );
 
     // Store previous Osc1 phase for hard sync detection
-    const prevOsc1Phase = voice.phase;
+    const prevOsc1Phase = voice.osc1.phase;
 
     // Phase advance for Osc1 with FM
     const phInc = modulatedFreq / sr;
-    voice.phase += phInc;
-    voice.phase %= 1.0;
+    voice.osc1.phase += phInc;
+    voice.osc1.phase %= 1.0;
 
     // Apply hard sync: reset Osc2 phase when Osc1 phase wraps
     if (hardSyncNow > 0) {
-      if (prevOsc1Phase > voice.phase) {
+      if (prevOsc1Phase > voice.osc1.phase) {
         // Phase wrapped from >1 to <1
-        voice.osc2Phase = 0.0;
+        voice.osc2.phase = 0.0;
       }
     }
 
     // Sub oscillator (one octave down = half frequency)
     const subFreq = baseFreq * 0.5;
     const subPhInc = subFreq / sr;
-    voice.subPhase += subPhInc;
-    voice.subPhase %= 1.0;
+    voice.subOsc1.phase += subPhInc;
+    voice.subOsc1.phase %= 1.0;
 
     // PWM LFO
     let pwmRateNow =
@@ -1345,19 +1355,19 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         ? params.pwmDepth[sampleIndex]
         : params.pwmDepth[0];
 
-    voice.pwmLfoPhase += pwmRateNow / sr;
-    voice.pwmLfoPhase %= 1.0;
+    voice.osc1.pwmLfoPhase += pwmRateNow / sr;
+    voice.osc1.pwmLfoPhase %= 1.0;
 
-    const pwmMod = Math.sin(twoPi * voice.pwmLfoPhase);
+    const pwmMod = Math.sin(twoPi * voice.osc1.pwmLfoPhase);
     // Oscillate around pulseWidth (PW ± modulation)
     let duty = pulseWidthNow + pwmMod * (0.45 * pwmDepthNow);
     // Clamp to 1%-99% to avoid extreme values
     duty = Math.max(0.01, Math.min(0.99, duty));
 
     // Bandlimited pulse wave with polyBLEP anti-aliasing (Osc1 raw signal)
-    let osc1Raw = voice.phase < duty ? 1.0 : -1.0;
-    osc1Raw -= this.polyBLEP(voice.phase, phInc);
-    osc1Raw += this.polyBLEP((voice.phase - duty + 1.0) % 1.0, phInc);
+    let osc1Raw = voice.osc1.phase < duty ? 1.0 : -1.0;
+    osc1Raw -= this.polyBLEP(voice.osc1.phase, phInc);
+    osc1Raw += this.polyBLEP((voice.osc1.phase - duty + 1.0) % 1.0, phInc);
 
     // Sub oscillator
     let subVolNow =
@@ -1366,9 +1376,12 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     subVolNow = Math.max(0, Math.min(1, subVolNow + aftertouchMods.sub1Volume));
     let subOsc = 0.0;
     if (subVolNow > 0) {
-      let subSquare = voice.subPhase < 0.5 ? 1.0 : -1.0;
-      subSquare -= this.polyBLEP(voice.subPhase, subPhInc);
-      subSquare += this.polyBLEP((voice.subPhase - 0.5 + 1.0) % 1.0, subPhInc);
+      let subSquare = voice.subOsc1.phase < 0.5 ? 1.0 : -1.0;
+      subSquare -= this.polyBLEP(voice.subOsc1.phase, subPhInc);
+      subSquare += this.polyBLEP(
+        (voice.subOsc1.phase - 0.5 + 1.0) % 1.0,
+        subPhInc
+      );
       subOsc = subSquare * subVolNow;
     }
 
@@ -1410,10 +1423,10 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     if (sub2VolNow > 0) {
       const sub2Freq = osc2Freq * 0.5;
       const sub2PhInc = sub2Freq / sr;
-      voice.sub2Phase += sub2PhInc;
-      voice.sub2Phase %= 1.0;
+      voice.subOsc2.phase += sub2PhInc;
+      voice.subOsc2.phase %= 1.0;
       sub2Output =
-        this.generateWaveform(voice.sub2Phase, sub2PhInc, osc2WaveformNow) *
+        this.generateWaveform(voice.subOsc2.phase, sub2PhInc, osc2WaveformNow) *
         sub2VolNow;
     }
 
@@ -1446,6 +1459,22 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       y += noiseSignal * noiseVolNow;
     }
 
+    // Filter ADSR envelope - use Envelope class (computed BEFORE filter processing)
+    const filterEnvA = params.filterEnvA;
+    const filterEnvD = params.filterEnvD;
+    const filterEnvS = params.filterEnvS;
+    const filterEnvR = params.filterEnvR;
+
+    // Process filter envelope
+    const filterEnvValue = voice.filterEnv.process(
+      filterEnvA,
+      filterEnvD,
+      filterEnvS,
+      filterEnvR,
+      sr,
+      voice.gate
+    );
+
     // Apply filters (HPF -> LPF in series)
     let hpfCutoffNow =
       params.hpfCutoff.length > 1
@@ -1461,7 +1490,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     const hpEnvAmount = params.hpEnvAmount;
     if (hpEnvAmount !== 0) {
       // Scale envelope from 0-1 to -1 to +1 based on amount, then apply exponential scaling
-      const envMod = (voice.filterEnv * 2 - 1) * hpEnvAmount;
+      const envMod = (filterEnvValue * 2 - 1) * hpEnvAmount;
       // Apply exponential scaling: positive values boost frequency, negative values cut
       const freqMultiplier = Math.pow(2, envMod * 5); // ±5 octaves max
       hpfCutoffNow = Math.max(
@@ -1494,7 +1523,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     const lpEnvAmount = params.lpEnvAmount;
     if (lpEnvAmount !== 0) {
       // Scale envelope from 0-1 to -1 to +1 based on amount, then apply exponential scaling
-      const envMod = (voice.filterEnv * 2 - 1) * lpEnvAmount;
+      const envMod = (filterEnvValue * 2 - 1) * lpEnvAmount;
       // Apply exponential scaling: positive values boost frequency, negative values cut
       const freqMultiplier = Math.pow(2, envMod * 5); // ±5 octaves max
       lpfCutoffNow = Math.max(
@@ -1530,130 +1559,21 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       0
     );
 
-    // ADSR envelope
-    const envFloor = 0.0001;
+    // ADSR envelope - use Envelope class
     const envA = params.envA;
     const envD = params.envD;
     const envS = params.envS;
     const envR = params.envR;
 
-    // Attack
-    if (voice.envState === 'attack') {
-      if (envA <= 0) {
-        voice.env = 1.0;
-        voice.envState = 'decay';
-      } else {
-        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
-        const attackCoeff = 1.0 - Math.exp(-1.0 / ((envA / 4.6) * sr));
-        voice.env += (1.0 - voice.env) * attackCoeff;
-        if (voice.env >= 0.9999) {
-          voice.env = 1.0;
-          voice.envState = 'decay';
-        }
-      }
-    }
-    // Decay
-    if (voice.envState === 'decay') {
-      voice.sustainLevel = Math.max(envFloor, envS);
-      if (envD <= 0) {
-        voice.env = voice.sustainLevel;
-        voice.envState = voice.gate ? 'sustain' : 'release';
-      } else {
-        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
-        const decayCoeff = 1.0 - Math.exp(-1.0 / ((envD / 4.6) * sr));
-        voice.env += (voice.sustainLevel - voice.env) * decayCoeff;
-        if (Math.abs(voice.env - voice.sustainLevel) < 0.0001) {
-          voice.env = voice.sustainLevel;
-          voice.envState = voice.gate ? 'sustain' : 'release';
-        }
-      }
-    }
-    // Sustain
-    if (voice.envState === 'sustain') {
-      voice.sustainLevel = Math.max(envFloor, envS);
-      voice.env = voice.sustainLevel;
-      if (!voice.gate) voice.envState = 'release';
-    }
-    // Release
-    if (voice.envState === 'release') {
-      if (envR <= 0) {
-        if (voice.midi >= 0) {
-          this.noteToVoice.delete(voice.midi);
-        }
-        this.resetVoice(voice);
-      } else {
-        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
-        const releaseCoeff = 1.0 - Math.exp(-1.0 / ((envR / 4.6) * sr));
-        voice.env += (envFloor - voice.env) * releaseCoeff;
-        if (voice.env <= envFloor * 1.5) {
-          if (voice.midi >= 0) {
-            this.noteToVoice.delete(voice.midi);
-          }
-          this.resetVoice(voice);
-        }
-      }
-    }
-
-    // Filter ADSR envelope
-    const filterEnvFloor = 0.0001;
-    const filterEnvA = params.filterEnvA;
-    const filterEnvD = params.filterEnvD;
-    const filterEnvS = params.filterEnvS;
-    const filterEnvR = params.filterEnvR;
-
-    // Filter Attack
-    if (voice.filterEnvState === 'attack') {
-      if (filterEnvA <= 0) {
-        voice.filterEnv = 1.0;
-        voice.filterEnvState = 'decay';
-      } else {
-        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
-        const attackCoeff = 1.0 - Math.exp(-1.0 / ((filterEnvA / 4.6) * sr));
-        voice.filterEnv += (1.0 - voice.filterEnv) * attackCoeff;
-        if (voice.filterEnv >= 0.9999) {
-          voice.filterEnv = 1.0;
-          voice.filterEnvState = 'decay';
-        }
-      }
-    }
-    // Filter Decay
-    if (voice.filterEnvState === 'decay') {
-      voice.filterSustainLevel = Math.max(filterEnvFloor, filterEnvS);
-      if (filterEnvD <= 0) {
-        voice.filterEnv = voice.filterSustainLevel;
-        voice.filterEnvState = voice.gate ? 'sustain' : 'release';
-      } else {
-        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
-        const decayCoeff = 1.0 - Math.exp(-1.0 / ((filterEnvD / 4.6) * sr));
-        voice.filterEnv +=
-          (voice.filterSustainLevel - voice.filterEnv) * decayCoeff;
-        if (Math.abs(voice.filterEnv - voice.filterSustainLevel) < 0.0001) {
-          voice.filterEnv = voice.filterSustainLevel;
-          voice.filterEnvState = voice.gate ? 'sustain' : 'release';
-        }
-      }
-    }
-    // Filter Sustain
-    if (voice.filterEnvState === 'sustain') {
-      voice.filterSustainLevel = Math.max(filterEnvFloor, filterEnvS);
-      voice.filterEnv = voice.filterSustainLevel;
-      if (!voice.gate) voice.filterEnvState = 'release';
-    }
-    // Filter Release
-    if (voice.filterEnvState === 'release') {
-      if (filterEnvR <= 0) {
-        voice.filterEnv = 0.0;
-        voice.filterEnvState = 'idle';
-      } else {
-        // Divide by ~4.6 so displayed time matches actual time to reach ~99%
-        const releaseCoeff = 1.0 - Math.exp(-1.0 / ((filterEnvR / 4.6) * sr));
-        voice.filterEnv += (filterEnvFloor - voice.filterEnv) * releaseCoeff;
-        if (voice.filterEnv <= filterEnvFloor * 1.5) {
-          voice.filterEnv = 0.0;
-          voice.filterEnvState = 'idle';
-        }
-      }
-    }
+    // Process amplitude envelope
+    const envValue = voice.ampEnv.process(
+      envA,
+      envD,
+      envS,
+      envR,
+      sr,
+      voice.gate
+    );
 
     // Pan LFO
     let panRateNow =
@@ -1677,9 +1597,9 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     );
     const panPosNow =
       params.panPos.length > 1 ? params.panPos[sampleIndex] : params.panPos[0];
-    voice.panLfoPhase += panRateNow / sr;
-    voice.panLfoPhase %= 1.0;
-    const panMod = Math.sin(twoPi * voice.panLfoPhase) * panDepthNow;
+    voice.panLfo.phase += panRateNow / sr;
+    voice.panLfo.phase %= 1.0;
+    const panMod = Math.sin(twoPi * voice.panLfo.phase) * panDepthNow;
     // Clamp final pan position to [-1, 1]
     let pan = Math.max(-1, Math.min(1, panPosNow + panMod));
 
@@ -1692,7 +1612,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     // Mix between fixed velocity (1.0) and actual velocity based on velocityAmt
     const effectiveVelocity =
       1.0 - params.velocityAmt + voice.velocity * params.velocityAmt;
-    const out = y * voice.env * effectiveVelocity * masterNow * 0.6; // Reduced volume for polyphony
+    const out = y * envValue * effectiveVelocity * masterNow * 0.6; // Reduced volume for polyphony
 
     return {
       left: out * lg,
@@ -1791,7 +1711,11 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     }
 
     // Process each voice and mix
-    for (let voiceIndex = 0; voiceIndex < this.voiceAllocator.maxVoices; voiceIndex++) {
+    for (
+      let voiceIndex = 0;
+      voiceIndex < this.voiceAllocator.maxVoices;
+      voiceIndex++
+    ) {
       const voice = this.voiceAllocator.voices[voiceIndex];
 
       for (let i = 0; i < L.length; i++) {

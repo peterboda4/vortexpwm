@@ -30,10 +30,11 @@
  * ```
  *
  * ## Output:
- * - File: dist/index.html (~273KB)
+ * - File: dist/index.html (~984KB with source maps, ~426KB without)
  * - Format: Single-file monolithic distribution
- * - Contents: Complete synth + 11 effects + UI + MIDI support
+ * - Contents: Complete synth + 11 effects + UI + MIDI support + inline source maps
  * - Requirements: HTTPS or localhost (AudioWorklet API requirement)
+ * - Source Maps: Inline base64-encoded for all modules and worklets (enables debugging)
  *
  * @author PWM Synth Team
  * @license MIT
@@ -57,8 +58,30 @@ const __dirname = path.dirname(__filename);
 const indexHtml = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf-8');
 const css = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf-8');
 
-// Helper to convert file to data URL
-function toDataURL(code, type = 'application/javascript') {
+// Helper to generate inline source map for a module
+function generateSourceMap(originalPath, code) {
+  // Create a simple source map that maps the bundled code back to original file
+  const sourceMap = {
+    version: 3,
+    file: path.basename(originalPath),
+    sources: [originalPath],
+    sourcesContent: [code],
+    names: [],
+    mappings: '', // Empty mappings = identity mapping (line-by-line)
+  };
+
+  // Convert source map to base64 data URL
+  const sourceMapJson = JSON.stringify(sourceMap);
+  const sourceMapBase64 = Buffer.from(sourceMapJson).toString('base64');
+  return `data:application/json;charset=utf-8;base64,${sourceMapBase64}`;
+}
+
+// Helper to convert file to data URL with optional source map
+function toDataURL(code, type = 'application/javascript', sourceMapUrl = null) {
+  // Add source map comment if provided
+  if (sourceMapUrl) {
+    code = code + `\n//# sourceMappingURL=${sourceMapUrl}`;
+  }
   return `data:${type};base64,${Buffer.from(code).toString('base64')}`;
 }
 
@@ -225,7 +248,7 @@ for (const modulePath of modulePaths) {
   originalCode.set(fullPath, code);
 }
 
-// Pass 2: First round of patching - creates initial data URLs
+// Pass 2: First round of patching - creates initial data URLs with source maps
 console.log('Pass 2: First patch pass...');
 for (const modulePath of modulePaths) {
   const fullPath = path.join(__dirname, modulePath);
@@ -235,10 +258,16 @@ for (const modulePath of modulePaths) {
     modulePath,
   });
   patchedCode.set(fullPath, patched);
-  moduleMap.set(fullPath, toDataURL(patched));
+
+  // Generate source map for this module
+  const sourceMapUrl = generateSourceMap(modulePath, code);
+  moduleMap.set(
+    fullPath,
+    toDataURL(patched, 'application/javascript', sourceMapUrl)
+  );
 }
 
-// Pass 3: Second patch pass - re-patch with updated data URLs
+// Pass 3: Second patch pass - re-patch with updated data URLs and source maps
 console.log('Pass 3: Final patch pass...');
 let iteration = 0;
 const maxIterations = 4;
@@ -251,7 +280,15 @@ while (iteration < maxIterations) {
       pass: `pass3:${iteration}`,
       modulePath,
     });
-    const newDataUrl = toDataURL(finalPatched);
+
+    // Generate source map for this module
+    const sourceMapUrl = generateSourceMap(modulePath, code);
+    const newDataUrl = toDataURL(
+      finalPatched,
+      'application/javascript',
+      sourceMapUrl
+    );
+
     if (moduleMap.get(fullPath) !== newDataUrl) {
       moduleMap.set(fullPath, newDataUrl);
       changed = true;
@@ -414,9 +451,15 @@ if (!window.isSecureContext) {
   alert('This synthesizer requires HTTPS or localhost to function. Please access via a web server.');
 }
 
-// Create Blob URLs for AudioWorklet processors
-const synthProcessorCode = \`${workletSynthProcessor.replace(/[`\\$]/g, '\\$&')}\`;
-const fxChainProcessorCode = \`${workletFxChainProcessor.replace(/[`\\$]/g, '\\$&')}\`;
+// Create Blob URLs for AudioWorklet processors with source maps
+const synthProcessorSourceMap = ${JSON.stringify(generateSourceMap('worklet/synth-processor.js', workletSynthProcessor))};
+const fxChainProcessorSourceMap = ${JSON.stringify(generateSourceMap('worklet/fx-chain-processor.js', workletFxChainProcessor))};
+
+const synthProcessorCode = \`${workletSynthProcessor.replace(/[`\\$]/g, '\\$&')}
+//# sourceMappingURL=\${synthProcessorSourceMap}\`;
+
+const fxChainProcessorCode = \`${workletFxChainProcessor.replace(/[`\\$]/g, '\\$&')}
+//# sourceMappingURL=\${fxChainProcessorSourceMap}\`;
 
 window.__workletURLs = {
   'synth-processor': URL.createObjectURL(
@@ -519,6 +562,22 @@ if (finalHtml.includes('src="./main.js"')) {
 
 console.log('✓ Final HTML validated');
 
+// Count source maps in output (decode data URLs to check)
+let sourceMapCount = 0;
+const dataUrls =
+  finalHtml.match(/data:application\/javascript;base64,([A-Za-z0-9+\/=]+)/g) ||
+  [];
+for (const dataUrl of dataUrls) {
+  const base64 = dataUrl.split(',')[1];
+  const decoded = Buffer.from(base64, 'base64').toString();
+  if (decoded.includes('sourceMappingURL=')) {
+    sourceMapCount++;
+  }
+}
+console.log(
+  `✓ Inline source maps generated: ${sourceMapCount} data URLs with source maps`
+);
+
 // Write final HTML
 fs.writeFileSync(path.join(__dirname, 'dist/index.html'), finalHtml);
 
@@ -537,4 +596,5 @@ console.log('   • ES modules as data URLs (base64)');
 console.log('   • AudioWorklet processors as Blob URLs');
 console.log('   • 11 audio effects included');
 console.log('   • Full MIDI, keyboard, and FX chain support');
+console.log(`   • Inline source maps (${sourceMapCount} total) for debugging`);
 console.log('✓ All build validations passed');

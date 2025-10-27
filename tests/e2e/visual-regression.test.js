@@ -11,7 +11,9 @@ test.describe('E2E: Visual Regression', () => {
     await page.goto('/');
   });
 
-  test('should match initial UI layout before audio start', async ({ page }) => {
+  test('should match initial UI layout before audio start', async ({
+    page,
+  }) => {
     // Wait for page to fully load
     await page.waitForLoadState('networkidle');
 
@@ -22,7 +24,9 @@ test.describe('E2E: Visual Regression', () => {
     });
   });
 
-  test('should match UI layout after audio initialization', async ({ page }) => {
+  test('should match UI layout after audio initialization', async ({
+    page,
+  }) => {
     // Start audio
     await page.locator('#start').click();
     await page.waitForTimeout(500);
@@ -74,15 +78,21 @@ test.describe('E2E: Visual Regression', () => {
 
     // Screenshot oscillator section
     const oscSection = page.locator('text=Oscillator').locator('..');
-    await expect(oscSection.first()).toHaveScreenshot('oscillator-controls.png', {
-      animations: 'disabled',
-    });
+    await expect(oscSection.first()).toHaveScreenshot(
+      'oscillator-controls.png',
+      {
+        animations: 'disabled',
+      }
+    );
 
     // Screenshot filter section
     const filterSection = page.locator('text=Filter').locator('..');
-    await expect(filterSection.first()).toHaveScreenshot('filter-controls.png', {
-      animations: 'disabled',
-    });
+    await expect(filterSection.first()).toHaveScreenshot(
+      'filter-controls.png',
+      {
+        animations: 'disabled',
+      }
+    );
 
     // Screenshot envelope section
     const envSection = page.locator('text=Envelope').locator('..');
@@ -136,7 +146,9 @@ test.describe('E2E: Visual Regression', () => {
     });
   });
 
-  test('should match slider appearance at different values', async ({ page }) => {
+  test('should match slider appearance at different values', async ({
+    page,
+  }) => {
     await page.locator('#start').click();
     await page.waitForTimeout(500);
 
@@ -344,9 +356,12 @@ test.describe('E2E: Visual Regression', () => {
     // Find aftertouch section
     const atSection = page.locator('text=Aftertouch').locator('..');
     if ((await atSection.count()) > 0) {
-      await expect(atSection.first()).toHaveScreenshot('aftertouch-controls.png', {
-        animations: 'disabled',
-      });
+      await expect(atSection.first()).toHaveScreenshot(
+        'aftertouch-controls.png',
+        {
+          animations: 'disabled',
+        }
+      );
     }
   });
 
@@ -372,7 +387,9 @@ test.describe('E2E: Visual Regression', () => {
     });
   });
 
-  test('should handle screenshot comparison with threshold', async ({ page }) => {
+  test('should handle screenshot comparison with threshold', async ({
+    page,
+  }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
