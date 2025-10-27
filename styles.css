@@ -241,6 +241,33 @@ footer {
   border-radius: 999px;
 }
 
+.pill.green {
+  background: #4caf50 !important;
+  color: #000 !important;
+}
+
+.pill.green * {
+  color: #000 !important;
+}
+
+.pill.orange {
+  background: #ffaa00 !important;
+  color: #000 !important;
+}
+
+.pill.orange * {
+  color: #000 !important;
+}
+
+.pill.red {
+  background: #ff4444 !important;
+  color: #000 !important;
+}
+
+.pill.red * {
+  color: #000 !important;
+}
+
 /* MIDI device checkbox styling */
 input[type='checkbox'] {
   width: 18px;
@@ -383,6 +410,7 @@ select {
 .fx-chain-item.dragging {
   opacity: 0.5;
   transform: rotate(2deg);
+  pointer-events: none; /* Prevent slider interaction during drag */
 }
 
 .fx-chain-item:hover {

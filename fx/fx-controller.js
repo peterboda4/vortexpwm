@@ -3,6 +3,13 @@
  * Manages AudioWorkletNode and provides high-level API
  */
 
+import { parameterManager } from './parameter-manager.js';
+import {
+  EFFECT_REGISTRY,
+  getEffectImportPaths,
+  getEffectClassNames,
+} from './effect-registry.js';
+
 export class FXController {
   constructor() {
     this.audioContext = null;
@@ -12,47 +19,37 @@ export class FXController {
     this.chainOrder = [];
     this.metadataLoaded = false;
     this.instanceCounter = 0;
+    this.parameterManager = parameterManager;
   }
 
   async loadMetadata() {
-    // Load all effect modules in parallel for faster startup
-    const [
-      { HardClipEffect },
-      { PhaserEffect },
-      { BitCrusherEffect },
-      { ChorusEffect },
-      { DelayEffect },
-      { ReverbEffect },
-      { FlangerEffect },
-      { TremoloEffect },
-      { AutoWahEffect },
-      { FreqShifterEffect },
-      { PitchShifterEffect },
-    ] = await Promise.all([
-      import('./effects/hardclip.js'),
-      import('./effects/phaser.js'),
-      import('./effects/bitcrusher.js'),
-      import('./effects/chorus.js'),
-      import('./effects/delay.js'),
-      import('./effects/reverb.js'),
-      import('./effects/flanger.js'),
-      import('./effects/tremolo.js'),
-      import('./effects/autowah.js'),
-      import('./effects/freqshifter.js'),
-      import('./effects/pitchshifter.js'),
-    ]);
+    // Automatically load all effects from registry
+    const importPaths = getEffectImportPaths();
+    const classNames = getEffectClassNames();
 
-    this.effectsMetadata.set('hardclip', HardClipEffect.getMetadata());
-    this.effectsMetadata.set('phaser', PhaserEffect.getMetadata());
-    this.effectsMetadata.set('bitcrusher', BitCrusherEffect.getMetadata());
-    this.effectsMetadata.set('chorus', ChorusEffect.getMetadata());
-    this.effectsMetadata.set('delay', DelayEffect.getMetadata());
-    this.effectsMetadata.set('reverb', ReverbEffect.getMetadata());
-    this.effectsMetadata.set('flanger', FlangerEffect.getMetadata());
-    this.effectsMetadata.set('tremolo', TremoloEffect.getMetadata());
-    this.effectsMetadata.set('autowah', AutoWahEffect.getMetadata());
-    this.effectsMetadata.set('freqshifter', FreqShifterEffect.getMetadata());
-    this.effectsMetadata.set('pitchshifter', PitchShifterEffect.getMetadata());
+    // Load all effect modules in parallel for faster startup
+    const effectModules = await Promise.all(
+      importPaths.map((path) => import(path))
+    );
+
+    // Store metadata and register with parameter manager
+    for (let i = 0; i < effectModules.length; i++) {
+      const module = effectModules[i];
+      const { id, class: className } = classNames[i];
+
+      // Get the effect class from the module
+      const EffectClass = module[className];
+      if (!EffectClass) {
+        console.error(
+          `Effect class ${className} not found in module ${importPaths[i]}`
+        );
+        continue;
+      }
+
+      const metadata = EffectClass.getMetadata();
+      this.effectsMetadata.set(id, metadata);
+      this.parameterManager.registerEffect(id, metadata.parameters);
+    }
 
     this.metadataLoaded = true;
   }
@@ -102,6 +99,9 @@ export class FXController {
 
     this.activeEffects.delete(instanceId);
     this.chainOrder = this.chainOrder.filter((id) => id !== instanceId);
+
+    // Clean up parameter manager state
+    this.parameterManager.clearInstance(instanceId);
   }
 
   reorderChain(newOrder) {
@@ -114,18 +114,39 @@ export class FXController {
   }
 
   setParameter(instanceId, param, value) {
+    // Check if metadata is loaded to prevent validation warnings
+    if (!this.metadataLoaded) {
+      console.warn(
+        `Cannot set parameter before metadata loaded: ${instanceId}.${param}`
+      );
+      return value;
+    }
+
     // Check if effect exists before sending message to prevent race condition
     if (!this.activeEffects.has(instanceId)) {
       console.warn(`Cannot set parameter for removed effect: ${instanceId}`);
       return;
     }
 
+    const effect = this.activeEffects.get(instanceId);
+    const effectId = effect.effectId;
+
+    // Validate parameter value using parameter manager
+    const validatedValue = this.parameterManager.setValue(
+      instanceId,
+      effectId,
+      param,
+      value
+    );
+
     this.fxNode.port.postMessage({
       type: 'setParameter',
       instanceId,
       param,
-      value,
+      value: validatedValue,
     });
+
+    return validatedValue;
   }
 
   setEnabled(instanceId, enabled) {
@@ -178,7 +199,8 @@ export class FXController {
   handleMessage(msg) {
     if (msg.type === 'effectAdded') {
       // Insert at the reported position to match worklet order
-      const position = msg.position >= 0 ? msg.position : this.chainOrder.length;
+      const position =
+        msg.position >= 0 ? msg.position : this.chainOrder.length;
       this.chainOrder.splice(position, 0, msg.instanceId);
 
       window.dispatchEvent(
@@ -215,6 +237,12 @@ export class FXController {
 
   clearChain() {
     this.fxNode.port.postMessage({ type: 'clear' });
+
+    // Clean up parameter manager state for all instances
+    for (const instanceId of this.activeEffects.keys()) {
+      this.parameterManager.clearInstance(instanceId);
+    }
+
     this.activeEffects.clear();
     this.chainOrder = [];
 

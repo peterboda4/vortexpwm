@@ -100,6 +100,12 @@ export class MIDIInput {
     const [status, data1, data2] = message.data;
     const command = status & 0xf0;
 
+    // Validate MIDI note range early
+    if ((command === 0x90 || command === 0x80) && (data1 < 0 || data1 > 127)) {
+      console.warn(`Invalid MIDI note received: ${data1} (must be 0-127)`);
+      return;
+    }
+
     switch (command) {
       case 0x90: // Note On
         if (data2 > 0) {
@@ -173,7 +179,10 @@ export class MIDIInput {
     switch (ccNumber) {
       // Modulation Wheel → PWM Depth
       case 1:
-        this.synth.setParam('pulseWidthModulationDepth', this.mapCC(value, 0, 1));
+        this.synth.setParam(
+          'pulseWidthModulationDepth',
+          this.mapCC(value, 0, 1)
+        );
         break;
 
       // Volume → Master Volume
@@ -193,7 +202,10 @@ export class MIDIInput {
 
       // Effect Control 1 → PWM Rate
       case 12:
-        this.synth.setParam('pulseWidthModulationRate', this.mapCC(value, 0.1, 10));
+        this.synth.setParam(
+          'pulseWidthModulationRate',
+          this.mapCC(value, 0.1, 10)
+        );
         break;
 
       // Effect Control 2 → Pan Depth
@@ -235,6 +247,21 @@ export class MIDIInput {
         logger.debug(`Sustain pedal: ${sustainPressed ? 'ON' : 'OFF'}`);
         break;
 
+      // MIDI Panic: All Sound Off (CC 120)
+      case 120:
+        logger.info('MIDI Panic: All Sound Off (CC 120)');
+        this.synth.allNotesOff();
+        this.sustainedNotes.clear();
+        this.sustainPedal = false;
+        break;
+
+      // MIDI Panic: All Notes Off (CC 123)
+      case 123:
+        logger.info('MIDI Panic: All Notes Off (CC 123)');
+        this.synth.allNotesOff();
+        this.sustainedNotes.clear();
+        break;
+
       // Resonance (Filter Q) → LPF Resonance
       case 71:
         this.synth.setParam('filterResonance', this.mapCC(value, 0, 0.95));
@@ -252,10 +279,7 @@ export class MIDIInput {
 
       // Brightness (Filter Cutoff) → LPF Cutoff
       case 74:
-        this.synth.setParam(
-          'filterCutoff',
-          this.mapCC(value, 20, 20000, true)
-        );
+        this.synth.setParam('filterCutoff', this.mapCC(value, 20, 20000, true));
         break;
 
       // Sound Controller 6 → Filter Attack

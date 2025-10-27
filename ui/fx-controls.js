@@ -83,11 +83,8 @@ export class FXControls {
       const effectId = e.dataTransfer.getData('effectId');
       const source = e.dataTransfer.getData('source');
 
-      console.log('Drop event:', { effectId, source });
-
       if (source === 'library' && effectId) {
         const position = this.getDropPosition(e.clientY);
-        console.log('Adding effect:', effectId, 'at position:', position);
         this.fxController.addEffect(effectId, position);
         // UI will be updated via fxChainChanged event
       } else if (source === 'chain') {
@@ -225,6 +222,7 @@ export class FXControls {
       slider.addEventListener('input', () => {
         const param = slider.dataset.param;
         const value = parseFloat(slider.value);
+
         this.fxController.setParameter(instanceId, param, value);
 
         const valueSpan = slider.nextElementSibling;
@@ -258,8 +256,6 @@ export class FXControls {
 
   initEventListeners() {
     window.addEventListener('fxChainChanged', (e) => {
-      console.log('FX Chain changed:', e.detail);
-
       if (e.detail.type === 'added') {
         // Check if this effect is already in UI
         const existing = this.chainContainer.querySelector(
