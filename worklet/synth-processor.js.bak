@@ -567,16 +567,6 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     this.watchdogCounter = 0;
     this.watchdogInterval = 10 * this.sampleRate; // Check every 10 seconds at any sample rate
 
-    // Voice count reporting (send update every ~100ms)
-    this.voiceCountReportCounter = 0;
-    this.voiceCountReportInterval = this.sampleRate * 0.1; // Report every 100ms
-    this.lastActiveVoiceCount = 0;
-
-    // Message queue for thread-safe voice state changes
-    // Messages are queued in onmessage and processed in process() callback
-    this.messageQueue = [];
-    this.maxQueueSize = 256; // Prevent memory overflow
-
     this.port.onmessage = (e) => {
       const msg = e.data;
       // Validate message structure
@@ -589,8 +579,6 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         return;
       }
 
-      // Queue message for processing in process() callback
-      // This ensures thread-safe voice state changes
       if (msg.type === 'noteOn') {
         // Validate required fields
         if (typeof msg.midi !== 'number' || isNaN(msg.midi)) {
@@ -601,46 +589,25 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
           console.error('Invalid noteOn: velocity must be a number', msg);
           return;
         }
-        // Add to queue if not full
-        if (this.messageQueue.length < this.maxQueueSize) {
-          this.messageQueue.push({
-            type: 'noteOn',
-            midi: msg.midi | 0,
-            velocity: Math.max(0, Math.min(1, +msg.velocity))
-          });
-        } else {
-          console.warn('Message queue full, dropping noteOn message');
-        }
+        this.noteOn(msg.midi | 0, Math.max(0, Math.min(1, +msg.velocity)));
       } else if (msg.type === 'noteOff') {
         // Validate required fields
         if (typeof msg.midi !== 'number' || isNaN(msg.midi)) {
           console.error('Invalid noteOff: midi must be a number', msg);
           return;
         }
-        // Add to queue if not full
-        if (this.messageQueue.length < this.maxQueueSize) {
-          this.messageQueue.push({
-            type: 'noteOff',
-            midi: msg.midi | 0
-          });
-        } else {
-          console.warn('Message queue full, dropping noteOff message');
-        }
+        this.noteOff(msg.midi | 0);
       } else if (msg.type === 'aftertouch') {
         // Validate required fields
         if (typeof msg.value !== 'number' || isNaN(msg.value)) {
           console.error('Invalid aftertouch: value must be a number', msg);
           return;
         }
-        // Aftertouch can be applied immediately (no voice allocation)
+        // Channel pressure (aftertouch), value 0-127 normalized to 0.0-1.0
         this.aftertouch = Math.max(0, Math.min(1, +msg.value / 127.0));
       } else if (msg.type === 'allNotesOff') {
-        // Add to queue if not full
-        if (this.messageQueue.length < this.maxQueueSize) {
-          this.messageQueue.push({ type: 'allNotesOff' });
-        } else {
-          console.warn('Message queue full, dropping allNotesOff message');
-        }
+        // MIDI panic: Release all active voices
+        this.allNotesOff();
       } else {
         console.error('Unknown message type:', msg.type);
       }
@@ -1365,21 +1332,6 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
 
     if (!L || !R) return true;
 
-    // Process queued messages BEFORE audio rendering
-    // This ensures all voice state changes happen atomically
-    // before we start reading voice data
-    while (this.messageQueue.length > 0) {
-      const msg = this.messageQueue.shift();
-
-      if (msg.type === 'noteOn') {
-        this.noteOn(msg.midi, msg.velocity);
-      } else if (msg.type === 'noteOff') {
-        this.noteOff(msg.midi);
-      } else if (msg.type === 'allNotesOff') {
-        this.allNotesOff();
-      }
-    }
-
     // Increment frame counter for voice timing
     this.currentFrame += L.length;
 
@@ -1478,30 +1430,6 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
         R[i] = 0;
       } else {
         R[i] = Math.max(-1, Math.min(1, R[i]));
-      }
-    }
-
-    // Report active voice count periodically (every ~100ms)
-    this.voiceCountReportCounter += L.length;
-    if (this.voiceCountReportCounter >= this.voiceCountReportInterval) {
-      this.voiceCountReportCounter = 0;
-
-      // Count active voices
-      let activeCount = 0;
-      for (let i = 0; i < this.maxVoices; i++) {
-        if (this.voices[i].active) {
-          activeCount++;
-        }
-      }
-
-      // Only send update if count changed
-      if (activeCount !== this.lastActiveVoiceCount) {
-        this.lastActiveVoiceCount = activeCount;
-        this.port.postMessage({
-          type: 'voiceCount',
-          active: activeCount,
-          total: this.maxVoices
-        });
       }
     }
 

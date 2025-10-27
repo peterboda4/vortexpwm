@@ -52,8 +52,11 @@ export function initUI({ synth, midiInput }) {
         }
       };
 
-      // Check periodically (every second)
-      setInterval(checkContextState, 1000);
+      // Check periodically (every second) - store interval ID for cleanup
+      const contextCheckInterval = setInterval(checkContextState, 1000);
+
+      // Store cleanup function globally for potential cleanup on page unload
+      window.__audioContextCheckInterval = contextCheckInterval;
     }
   }
 
@@ -67,4 +70,30 @@ export function initUI({ synth, midiInput }) {
 
   // Setup keyboard
   initKeyboard(synth);
+
+  // Setup voice count display
+  const voiceCountValue = byId('voiceCountValue');
+  if (voiceCountValue) {
+    window.addEventListener('voiceCount', (event) => {
+      const { active } = event.detail;
+      voiceCountValue.textContent = active;
+
+      // Optional: Add visual feedback for voice pressure
+      const voiceCountElement = byId('voiceCount');
+      if (voiceCountElement) {
+        // Remove all color classes first
+        voiceCountElement.classList.remove('green', 'orange', 'red');
+
+        // Add appropriate color class based on active voices
+        if (active >= 7) {
+          voiceCountElement.classList.add('red'); // Red when nearly full
+        } else if (active >= 5) {
+          voiceCountElement.classList.add('orange'); // Orange when getting full
+        } else if (active > 0) {
+          voiceCountElement.classList.add('green'); // Green when active
+        }
+        // No class = default styling when idle
+      }
+    });
+  }
 }

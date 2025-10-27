@@ -2,6 +2,7 @@ import { initUI } from './ui/controls.js';
 import { Synth, checkBrowserCompatibility } from './audio/synth.js';
 import { MIDIInput } from './midi/midi-input.js';
 import { FXControls } from './ui/fx-controls.js';
+import { destroyKeyboard } from './ui/keyboard.js';
 
 // Helper to show user-visible error messages
 function showError(title, message) {
@@ -83,6 +84,16 @@ async function initApp() {
         synth.ctx.resume().catch((err) => {
           console.error('Failed to resume audio after tab visibility change:', err);
         });
+      }
+    });
+
+    // Setup cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      destroyKeyboard();
+      // Clear the context check interval if it exists
+      if (window.__audioContextCheckInterval) {
+        clearInterval(window.__audioContextCheckInterval);
+        delete window.__audioContextCheckInterval;
       }
     });
   } catch (error) {

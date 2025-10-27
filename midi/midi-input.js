@@ -100,6 +100,12 @@ export class MIDIInput {
     const [status, data1, data2] = message.data;
     const command = status & 0xf0;
 
+    // Validate MIDI note range early
+    if ((command === 0x90 || command === 0x80) && (data1 < 0 || data1 > 127)) {
+      console.warn(`Invalid MIDI note received: ${data1} (must be 0-127)`);
+      return;
+    }
+
     switch (command) {
       case 0x90: // Note On
         if (data2 > 0) {
@@ -233,6 +239,21 @@ export class MIDIInput {
         }
         this.sustainPedal = sustainPressed;
         logger.debug(`Sustain pedal: ${sustainPressed ? 'ON' : 'OFF'}`);
+        break;
+
+      // MIDI Panic: All Sound Off (CC 120)
+      case 120:
+        logger.info('MIDI Panic: All Sound Off (CC 120)');
+        this.synth.allNotesOff();
+        this.sustainedNotes.clear();
+        this.sustainPedal = false;
+        break;
+
+      // MIDI Panic: All Notes Off (CC 123)
+      case 123:
+        logger.info('MIDI Panic: All Notes Off (CC 123)');
+        this.synth.allNotesOff();
+        this.sustainedNotes.clear();
         break;
 
       // Resonance (Filter Q) → LPF Resonance

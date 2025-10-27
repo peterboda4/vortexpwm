@@ -169,7 +169,8 @@ export function initKeyboard(synth) {
     return false;
   };
 
-  window.addEventListener('keydown', (e) => {
+  // Store handlers for cleanup
+  const handleKeyDown = (e) => {
     // Ignore keyboard shortcuts when typing in text fields
     if (shouldIgnoreKeyboardEvent(e)) return;
 
@@ -181,9 +182,9 @@ export function initKeyboard(synth) {
     const midi = keyToMidi.get(k);
     btnByMidi.get(midi)?.classList.add('note-on');
     synth.noteOn(midi, currentVelocity);
-  });
+  };
 
-  window.addEventListener('keyup', (e) => {
+  const handleKeyUp = (e) => {
     // Ignore keyboard shortcuts when typing in text fields
     if (shouldIgnoreKeyboardEvent(e)) return;
 
@@ -194,5 +195,28 @@ export function initKeyboard(synth) {
     const midi = keyToMidi.get(k);
     btnByMidi.get(midi)?.classList.remove('note-on');
     synth.noteOff(midi);
-  });
+  };
+
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+
+  // Store cleanup function globally for potential cleanup on page unload
+  window.__keyboardCleanup = () => {
+    window.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('keyup', handleKeyUp);
+    // Clear active notes
+    downSet.clear();
+    btnByMidi.forEach((btn) => btn.classList.remove('note-on'));
+  };
+}
+
+/**
+ * Cleanup keyboard event listeners
+ * Call this when destroying the synth or on page unload
+ */
+export function destroyKeyboard() {
+  if (window.__keyboardCleanup) {
+    window.__keyboardCleanup();
+    delete window.__keyboardCleanup;
+  }
 }

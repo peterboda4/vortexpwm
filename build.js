@@ -1,8 +1,42 @@
 #!/usr/bin/env node
 
 /**
- * Build script - Creates single-file distribution
- * Uses data URLs (base64) for all modules to preserve ES module semantics
+ * Build script - Creates single-file monolithic distribution
+ *
+ * This script bundles the entire PWM synthesizer into a single HTML file (dist/index.html)
+ * that can be deployed to any web server supporting HTTPS.
+ *
+ * ## What it does:
+ * 1. Collects all JavaScript modules from the codebase (excluding tests, worklets, build files)
+ * 2. Converts ES modules to base64 data URLs to preserve module semantics
+ * 3. Patches all relative imports to use data URLs (3-pass iterative algorithm)
+ * 4. Inlines CSS directly into HTML
+ * 5. Embeds AudioWorklet processors as Blob URLs
+ * 6. Pre-loads and globally exposes all FX effect classes
+ * 7. Validates the final output for completeness
+ *
+ * ## Three-pass patching system:
+ * The build uses an iterative approach to handle nested imports:
+ * - Pass 1: Read all original module code
+ * - Pass 2: First round of patching (creates initial data URLs)
+ * - Pass 3: Iterative re-patching (up to 4 iterations) until convergence
+ *
+ * This ensures all nested imports are correctly resolved to data URLs.
+ *
+ * ## Debug mode:
+ * Run with BUILD_DEBUG=1 to see detailed patching information:
+ * ```bash
+ * BUILD_DEBUG=1 npm run build
+ * ```
+ *
+ * ## Output:
+ * - File: dist/index.html (~273KB)
+ * - Format: Single-file monolithic distribution
+ * - Contents: Complete synth + 11 effects + UI + MIDI support
+ * - Requirements: HTTPS or localhost (AudioWorklet API requirement)
+ *
+ * @author PWM Synth Team
+ * @license MIT
  */
 
 import fs from 'fs';
@@ -278,6 +312,43 @@ const workletFxChainProcessor = fs.readFileSync(
   'utf-8'
 );
 
+// Validate that worklet processors are self-contained (no imports)
+function validateWorkletProcessor(code, filename) {
+  // Check for ES6 import statements
+  const importRegex = /^\s*import\s+/m;
+  if (importRegex.test(code)) {
+    console.error(`❌ Build validation failed: ${filename} contains import statements`);
+    console.error('   AudioWorklet processors must be self-contained (no imports allowed)');
+    const matches = code.match(/^\s*import\s+.+$/gm);
+    if (matches) {
+      console.error('   Found imports:');
+      matches.forEach((match) => console.error(`     ${match.trim()}`));
+    }
+    process.exit(1);
+  }
+
+  // Check for dynamic imports
+  const dynamicImportRegex = /import\s*\(/;
+  if (dynamicImportRegex.test(code)) {
+    console.error(`❌ Build validation failed: ${filename} contains dynamic import() calls`);
+    console.error('   AudioWorklet processors must be self-contained (no dynamic imports)');
+    process.exit(1);
+  }
+
+  // Check for require() calls (CommonJS)
+  const requireRegex = /\brequire\s*\(/;
+  if (requireRegex.test(code)) {
+    console.error(`❌ Build validation failed: ${filename} contains require() calls`);
+    console.error('   AudioWorklet processors must be self-contained (no require)');
+    process.exit(1);
+  }
+}
+
+console.log('Validating worklet processors...');
+validateWorkletProcessor(workletSynthProcessor, 'synth-processor.js');
+validateWorkletProcessor(workletFxChainProcessor, 'fx-chain-processor.js');
+console.log('✓ Worklet processors are self-contained (no imports)');
+
 // Get the patched main.js data URL
 const mainJsPath = path.join(__dirname, 'main.js');
 const mainJsDataUrl = moduleMap.get(mainJsPath);
@@ -287,30 +358,40 @@ if (!mainJsDataUrl) {
   process.exit(1);
 }
 
-// Validate required effect modules
-const requiredEffects = [
-  'fx/effects/hardclip.js',
-  'fx/effects/phaser.js',
-  'fx/effects/bitcrusher.js',
-  'fx/effects/chorus.js',
-  'fx/effects/delay.js',
-  'fx/effects/reverb.js',
-  'fx/effects/flanger.js',
-  'fx/effects/tremolo.js',
-  'fx/effects/autowah.js',
-  'fx/effects/freqshifter.js',
-  'fx/effects/pitchshifter.js',
-];
+// Validate required effect modules using registry
+// Import effect registry dynamically
+const effectRegistryPath = path.join(__dirname, 'fx/effect-registry.js');
+const effectRegistryCode = fs.readFileSync(effectRegistryPath, 'utf8');
 
-for (const effect of requiredEffects) {
+// Extract EFFECT_REGISTRY array using regex (simple parsing)
+const registryMatch = effectRegistryCode.match(
+  /export const EFFECT_REGISTRY = \[([\s\S]*?)\];/
+);
+if (!registryMatch) {
+  console.error('❌ Could not parse EFFECT_REGISTRY from effect-registry.js');
+  process.exit(1);
+}
+
+// Parse effect files from registry
+const effectFilesInRegistry = [];
+const fileMatches = registryMatch[1].matchAll(/file:\s*['"]([^'"]+)['"]/g);
+for (const match of fileMatches) {
+  effectFilesInRegistry.push(`fx/effects/${match[1]}`);
+}
+
+for (const effect of effectFilesInRegistry) {
   const effectPath = path.join(__dirname, effect);
   if (!moduleMap.has(effectPath)) {
-    console.error(`❌ Build validation failed: Required effect ${effect} not found`);
+    console.error(
+      `❌ Build validation failed: Required effect ${effect} not found`
+    );
     process.exit(1);
   }
 }
 
-console.log('✓ All required effects validated');
+console.log(
+  `✓ All ${effectFilesInRegistry.length} required effects validated (from registry)`
+);
 
 // Create worklet setup code
 const workletSetup = `
@@ -335,37 +416,46 @@ window.__workletURLs = {
 };
 
 // Import and expose effect classes globally for FX controller
-Promise.all([
-  import('${moduleMap.get(path.join(__dirname, 'fx/effects/hardclip.js'))}'),
-  import('${moduleMap.get(path.join(__dirname, 'fx/effects/phaser.js'))}'),
-  import('${moduleMap.get(path.join(__dirname, 'fx/effects/bitcrusher.js'))}'),
-  import('${moduleMap.get(path.join(__dirname, 'fx/effects/chorus.js'))}'),
-  import('${moduleMap.get(path.join(__dirname, 'fx/effects/delay.js'))}'),
-  import('${moduleMap.get(path.join(__dirname, 'fx/effects/reverb.js'))}'),
-  import('${moduleMap.get(path.join(__dirname, 'fx/effects/flanger.js'))}'),
-  import('${moduleMap.get(path.join(__dirname, 'fx/effects/tremolo.js'))}'),
-  import('${moduleMap.get(path.join(__dirname, 'fx/effects/autowah.js'))}'),
-  import('${moduleMap.get(path.join(__dirname, 'fx/effects/freqshifter.js'))}'),
-  import('${moduleMap.get(path.join(__dirname, 'fx/effects/pitchshifter.js'))}')
-]).then(([hardclip, phaser, bitcrusher, chorus, delay, reverb, flanger, tremolo, autowah, freqshifter, pitchshifter]) => {
-  // Make effect classes globally available
-  window.HardClipEffect = hardclip.HardClipEffect;
-  window.PhaserEffect = phaser.PhaserEffect;
-  window.BitCrusherEffect = bitcrusher.BitCrusherEffect;
-  window.ChorusEffect = chorus.ChorusEffect;
-  window.DelayEffect = delay.DelayEffect;
-  window.ReverbEffect = reverb.ReverbEffect;
-  window.FlangerEffect = flanger.FlangerEffect;
-  window.TremoloEffect = tremolo.TremoloEffect;
-  window.AutoWahEffect = autowah.AutoWahEffect;
-  window.FreqShifterEffect = freqshifter.FreqShifterEffect;
-  window.PitchShifterEffect = pitchshifter.PitchShifterEffect;
+// Automatically generated from effect registry
+${(() => {
+  // Generate import array from registry
+  const imports = effectFilesInRegistry
+    .map((file) => {
+      const fullPath = path.join(__dirname, file);
+      const dataUrl = moduleMap.get(fullPath);
+      return `import('${dataUrl}')`;
+    })
+    .join(',\n  ');
+
+  // Extract class names and IDs from registry for assignment
+  const classNames = [];
+  const idMatches = registryMatch[1].matchAll(
+    /\{\s*id:\s*['"]([^'"]+)['"],[^}]*class:\s*['"]([^'"]+)['"]/gs
+  );
+  for (const match of idMatches) {
+    classNames.push({ id: match[1], class: match[2] });
+  }
+
+  // Generate variable names for destructuring
+  const varNames = classNames.map((_, i) => `effect${i}`).join(', ');
+
+  // Generate assignments
+  const assignments = classNames
+    .map((cn, i) => `window.${cn.class} = effect${i}.${cn.class};`)
+    .join('\n  ');
+
+  return `Promise.all([
+  ${imports}
+]).then(([${varNames}]) => {
+  // Make effect classes globally available (auto-generated from registry)
+  ${assignments}
 
   // Now load main module
   import('${mainJsDataUrl}');
 }).catch(err => {
   console.error('[Build] Failed to load effect classes:', err);
-});
+});`;
+})()}
 `;
 
 // Build final HTML
