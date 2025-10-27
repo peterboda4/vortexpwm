@@ -23,6 +23,9 @@ dist/
 playwright-report/
 test-results/
 
+# Tests E2E PNGs
+tests/e2e/visual-regression.test.js-snapshots
+
 # Logs
 logs/
 *.log

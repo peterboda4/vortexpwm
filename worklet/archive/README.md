@@ -30,16 +30,22 @@ This folder contains historical versions of the synth processor that are no long
 
 ## Current Production Version
 
-The current production version is **worklet/synth-processor.js** (1515 lines).
+The current production version is **worklet/synth-processor.js** (~1850 lines, refactored 2025-10-27).
 
 Key features:
 
-- 8-voice polyphony
-- IIR Filter class (24dB resonant lowpass)
-- PolyBLEP anti-aliasing
-- Thread-safe message queue
-- Voice stealing with intelligent allocation
+- **Modular architecture** with 6 classes:
+  - `IIRFilter` - 24dB/18dB biquad filter
+  - `Envelope` - ADSR envelope generator
+  - `Oscillator` - PWM + PolyBLEP + multi-waveform
+  - `Voice` - Voice state container
+  - `VoiceAllocator` - Polyphonic voice management
+  - `MessageQueue` - Thread-safe messaging
+- 8-voice polyphony with intelligent voice stealing
+- PolyBLEP anti-aliasing for bandlimited synthesis
+- Thread-safe message queue pattern
 - Real-time voice count reporting
+- Full JSDoc documentation
 
 ## Why These Were Archived
 

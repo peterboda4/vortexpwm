@@ -68,7 +68,13 @@ The synth follows a four-layer architecture:
 
 3. **DSP Core** ([worklet/synth-processor.js](worklet/synth-processor.js))
    - Runs in AudioWorklet thread (separate from main thread)
-   - Implements polyphonic voice management with voice stealing
+   - **Modular architecture** with 6 classes (refactored 2025-10-27):
+     - `IIRFilter` - 24dB/18dB biquad filter with coefficient caching
+     - `Envelope` - ADSR envelope generator with exponential curves
+     - `Oscillator` - PWM + PolyBLEP anti-aliasing + multi-waveform generator
+     - `Voice` - Voice state container (oscillators, envelopes, filters)
+     - `VoiceAllocator` - Polyphonic voice management with intelligent stealing
+     - `MessageQueue` - Thread-safe message queue for voice events
    - Message queue for thread-safe voice allocation (prevents race conditions)
    - PWM oscillator with PolyBLEP anti-aliasing for bandlimited synthesis
    - Per-voice 24dB IIR resonant lowpass filter (cascaded biquads)
@@ -77,6 +83,7 @@ The synth follows a four-layer architecture:
    - Sub-oscillator (one octave down)
    - Real-time voice count reporting to UI (every 100ms)
    - Watchdog timer for stuck note cleanup (10 seconds)
+   - Full JSDoc documentation for all classes
 
 4. **Effects Chain** ([fx/](fx/) + [worklet/fx-chain-processor.js](worklet/fx-chain-processor.js))
    - [fx/fx-controller.js](fx/fx-controller.js) - Main effects controller
@@ -158,7 +165,7 @@ Each slot has: destination (0-4) and amount (-1 to +1).
 
 ### Core Files
 
-- [worklet/synth-processor.js](worklet/synth-processor.js) - Main DSP implementation (production version, 46KB, 1470 lines)
+- [worklet/synth-processor.js](worklet/synth-processor.js) - Main DSP implementation (production version, ~51KB, 1850 lines, refactored 2025-10-27)
 - [worklet/fx-chain-processor.js](worklet/fx-chain-processor.js) - Effects chain AudioWorklet processor
 - [audio/synth.js](audio/synth.js) - AudioWorklet controller and API
 - [midi/midi-input.js](midi/midi-input.js) - Web MIDI API wrapper
@@ -193,11 +200,15 @@ Each slot has: destination (0-4) and amount (-1 to +1).
 - [Problems_Critical.md](Problems_Critical.md) - 16 critical issues (all fixed, 100% complete)
 - [Important_TODO.md](Important_TODO.md) - Project analysis and improvement roadmap
 
-### Alternative Implementations (Not Used in Production)
+### Archived Implementations (Not Used in Production)
 
-- [worklet/synth-processor-poly.js](worklet/synth-processor-poly.js) - Earlier polyphonic version
-- [worklet/synth-processor-refactored.js](worklet/synth-processor-refactored.js) - Refactored version
-- [worklet/synth-processor.js.bak](worklet/synth-processor.js.bak) - Backup
+**All archived versions moved to [worklet/archive/](worklet/archive/) (2025-10-27):**
+
+- [worklet/archive/synth-processor-poly.js](worklet/archive/synth-processor-poly.js) - Earlier polyphonic version (450 lines)
+- [worklet/archive/synth-processor-refactored.js](worklet/archive/synth-processor-refactored.js) - Experimental refactored version (1350 lines)
+- [worklet/archive/synth-processor.js.bak](worklet/archive/synth-processor.js.bak) - Backup copy (1440 lines)
+
+See [worklet/archive/README.md](worklet/archive/README.md) for details on archived versions.
 
 ## Important Constraints
 
