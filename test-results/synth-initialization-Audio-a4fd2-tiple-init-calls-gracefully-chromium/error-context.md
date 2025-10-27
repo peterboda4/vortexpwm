@@ -1,0 +1,308 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+    - banner [ref=e2]:
+        - heading "VortexPWM v1.5" [level=1] [ref=e3]
+        - generic [ref=e4]:
+            - button "Start Audio" [ref=e5] [cursor=pointer]
+            - generic [ref=e6]: Stereo • 8-Voice Polyphonic
+            - generic "Active voices / Total voices" [ref=e7]: 'Voices: 0/8'
+    - main [ref=e8]:
+        - generic [ref=e9]:
+            - group "Oscillator 1 (PWM)" [ref=e10]:
+                - generic [ref=e11]: Oscillator 1 (PWM)
+                - generic [ref=e12]:
+                    - generic [ref=e13]: Coarse (st)
+                    - slider "Coarse (st)" [ref=e14]: '0'
+                    - generic [ref=e15]: '0'
+                - generic [ref=e16]:
+                    - generic [ref=e17]: Fine (cents)
+                    - slider "Fine (cents)" [ref=e18]: '0'
+                    - generic [ref=e19]: '0'
+                - generic [ref=e20]:
+                    - generic [ref=e21]: PW (%)
+                    - slider "PW (%)" [ref=e22]: '0.5'
+                    - generic [ref=e23]: '50'
+                - generic [ref=e24]:
+                    - generic [ref=e25]: PW Depth (%)
+                    - slider "PW Depth (%)" [ref=e26]: '0.5'
+                    - generic [ref=e27]: '50'
+                - generic [ref=e28]:
+                    - generic [ref=e29]: PW Rate (Hz)
+                    - slider "PW Rate (Hz)" [ref=e30]: '2'
+                    - generic [ref=e31]: '2.00'
+                - generic [ref=e32]:
+                    - generic [ref=e33]: FM Depth (%)
+                    - slider "FM Depth (%)" [ref=e34]: '0'
+                    - generic [ref=e35]: '0'
+            - group "Oscillator 2" [ref=e36]:
+                - generic [ref=e37]: Oscillator 2
+                - generic [ref=e38]:
+                    - generic [ref=e39]: Waveform
+                    - combobox "Waveform" [ref=e40]:
+                        - option "Saw" [selected]
+                        - option "Triangle"
+                        - option "Sine"
+                        - option "Square"
+                    - generic [ref=e41]: Saw
+                - generic [ref=e42]:
+                    - generic [ref=e43]: Coarse (st)
+                    - slider "Coarse (st)" [ref=e44]: '0'
+                    - generic [ref=e45]: '0'
+                - generic [ref=e46]:
+                    - generic [ref=e47]: Fine (cents)
+                    - slider "Fine (cents)" [ref=e48]: '0'
+                    - generic [ref=e49]: '0'
+                - generic [ref=e50]:
+                    - generic [ref=e51]: Hard Sync
+                    - slider "Hard Sync" [ref=e52]: '0'
+                    - generic [ref=e53]: 'Off'
+            - group "Mixer" [ref=e54]:
+                - generic [ref=e55]: Mixer
+                - generic [ref=e56]:
+                    - generic [ref=e57]: Osc1 Vol. (%)
+                    - slider "Osc1 Vol. (%)" [ref=e58]: '1'
+                    - generic [ref=e59]: '100'
+                - generic [ref=e60]:
+                    - generic [ref=e61]: Sub1 Vol. (%)
+                    - slider "Sub1 Vol. (%)" [ref=e62]: '0'
+                    - generic [ref=e63]: '0'
+                - generic [ref=e64]:
+                    - generic [ref=e65]: Osc2 Vol. (%)
+                    - slider "Osc2 Vol. (%)" [ref=e66]: '0'
+                    - generic [ref=e67]: '0'
+                - generic [ref=e68]:
+                    - generic [ref=e69]: Sub2 Vol. (%)
+                    - slider "Sub2 Vol. (%)" [ref=e70]: '0'
+                    - generic [ref=e71]: '0'
+                - generic [ref=e72]:
+                    - generic [ref=e73]: Ring Vol. (%)
+                    - slider "Ring Vol. (%)" [ref=e74]: '0'
+                    - generic [ref=e75]: '0'
+                - generic [ref=e76]:
+                    - generic [ref=e77]: Noise Vol. (%)
+                    - slider "Noise Vol. (%)" [ref=e78]: '0'
+                    - generic [ref=e79]: '0'
+            - group "Filters" [ref=e80]:
+                - generic [ref=e81]: Filters
+                - generic [ref=e82]:
+                    - generic [ref=e83]: LP Cutoff (Hz)
+                    - slider "LP Cutoff (Hz)" [ref=e84]: '0.25'
+                    - generic [ref=e85]: '3054'
+                - generic [ref=e86]:
+                    - generic [ref=e87]: LP Res. (%)
+                    - slider "LP Res. (%)" [ref=e88]: '0.1'
+                    - generic [ref=e89]: '10'
+                - generic [ref=e90]:
+                    - generic [ref=e91]: HP Cutoff (Hz)
+                    - slider "HP Cutoff (Hz)" [ref=e92]: '0'
+                    - generic [ref=e93]: '20'
+                - generic [ref=e94]:
+                    - generic [ref=e95]: HP Res. (%)
+                    - slider "HP Res. (%)" [ref=e96]: '0.1'
+                    - generic [ref=e97]: '10'
+            - group "Amplifier (ADSR + Master)" [ref=e98]:
+                - generic [ref=e99]: Amplifier (ADSR + Master)
+                - generic [ref=e100]:
+                    - generic [ref=e101]: Attack (ms)
+                    - slider "Attack (ms)" [ref=e102]: '0.005'
+                    - generic [ref=e103]: '5'
+                - generic [ref=e104]:
+                    - generic [ref=e105]: Decay (ms)
+                    - slider "Decay (ms)" [ref=e106]: '0.1'
+                    - generic [ref=e107]: '100'
+                - generic [ref=e108]:
+                    - generic [ref=e109]: Sustain (%)
+                    - slider "Sustain (%)" [ref=e110]: '0.7'
+                    - generic [ref=e111]: '0.700'
+                - generic [ref=e112]:
+                    - generic [ref=e113]: Release (ms)
+                    - slider "Release (ms)" [ref=e114]: '0.2'
+                    - generic [ref=e115]: '200'
+                - generic [ref=e116]:
+                    - generic [ref=e117]: Vel. Amt. (%)
+                    - slider "Vel. Amt. (%)" [ref=e118]: '0.5'
+                    - generic [ref=e119]: '50'
+                - generic [ref=e120]:
+                    - generic [ref=e121]: Master Vol. (%)
+                    - slider "Master Vol. (%)" [ref=e122]: '0.4'
+                    - generic [ref=e123]: '40'
+            - group "Filter Env (ADSR)" [ref=e124]:
+                - generic [ref=e125]: Filter Env (ADSR)
+                - generic [ref=e126]:
+                    - generic [ref=e127]: Attack (ms)
+                    - slider "Attack (ms)" [ref=e128]: '0.005'
+                    - generic [ref=e129]: '5'
+                - generic [ref=e130]:
+                    - generic [ref=e131]: Decay (ms)
+                    - slider "Decay (ms)" [ref=e132]: '0.1'
+                    - generic [ref=e133]: '100'
+                - generic [ref=e134]:
+                    - generic [ref=e135]: Sustain (%)
+                    - slider "Sustain (%)" [ref=e136]: '0.7'
+                    - generic [ref=e137]: '0.700'
+                - generic [ref=e138]:
+                    - generic [ref=e139]: Release (ms)
+                    - slider "Release (ms)" [ref=e140]: '0.2'
+                    - generic [ref=e141]: '200'
+                - generic [ref=e142]:
+                    - generic [ref=e143]: LP Env A. (%)
+                    - slider "LP Env A. (%)" [ref=e144]: '0'
+                    - generic [ref=e145]: '0'
+                - generic [ref=e146]:
+                    - generic [ref=e147]: HP Env A. (%)
+                    - slider "HP Env A. (%)" [ref=e148]: '0'
+                    - generic [ref=e149]: '0'
+        - group "Auto Pan" [ref=e151]:
+            - generic [ref=e152]: Auto Pan
+            - generic [ref=e153]:
+                - generic [ref=e154]: Pan Position
+                - slider "Pan Position" [ref=e155]: '0'
+                - generic [ref=e156]: 0%
+            - generic [ref=e157]:
+                - generic [ref=e158]: Pan Depth (%)
+                - slider "Pan Depth (%)" [ref=e159]: '0'
+                - generic [ref=e160]: '0'
+            - generic [ref=e161]:
+                - generic [ref=e162]: Pan Rate (Hz)
+                - slider "Pan Rate (Hz)" [ref=e163]: '0.5'
+                - generic [ref=e164]: '0.50'
+        - group "FX Chain (Drag & Drop)" [ref=e166]:
+            - generic [ref=e167]: FX Chain (Drag & Drop)
+            - generic [ref=e168]:
+                - generic [ref=e169]:
+                    - heading "Available Effects" [level=3] [ref=e170]
+                    - generic [ref=e171]:
+                        - generic [ref=e172]: Hard Clip
+                        - generic [ref=e173]: Phaser
+                        - generic [ref=e174]: Bit Crusher
+                        - generic [ref=e175]: Chorus
+                        - generic [ref=e176]: Stereo Delay
+                        - generic [ref=e177]: Hall/Shimmer
+                        - generic [ref=e178]: Flanger
+                        - generic [ref=e179]: Tremolo
+                        - generic [ref=e180]: Auto-Wah
+                        - generic [ref=e181]: Freq Shifter
+                        - generic [ref=e182]: Pitch Shifter
+                - generic [ref=e183]:
+                    - heading "Active Chain (drag to reorder)" [level=3] [ref=e184]
+                    - generic [ref=e186]: Drag effects from the left to add them to the chain
+        - generic [ref=e187]:
+            - group "MIDI" [ref=e188]:
+                - generic [ref=e189]: MIDI
+                - generic [ref=e190]:
+                    - generic [ref=e191]: Checking for MIDI devices...
+                    - generic [ref=e192]: 'Last note: -'
+                - generic [ref=e193]:
+                    - generic [ref=e194]:
+                        - generic [ref=e195]: Pitch Bend (st)
+                        - slider "Pitch Bend (st)" [ref=e196]: '2'
+                        - generic [ref=e197]: ±2
+                    - generic [ref=e198]:
+                        - generic [ref=e199]: Velocity Curve
+                        - slider "Velocity Curve" [ref=e200]: '0'
+                        - generic [ref=e201]: Lin
+            - group "Aftertouch Modulation" [ref=e202]:
+                - generic [ref=e203]: Aftertouch Modulation
+                - generic [ref=e204]:
+                    - generic [ref=e205]: Slot 1 Dest
+                    - slider "Slot 1 Dest" [ref=e206]: '0'
+                    - generic [ref=e207]: None
+                - generic [ref=e208]:
+                    - generic [ref=e209]: Slot 1 Amount
+                    - slider "Slot 1 Amount" [ref=e210]: '0'
+                    - generic [ref=e211]: '0.00'
+                - generic [ref=e212]:
+                    - generic [ref=e213]: Slot 2 Dest
+                    - slider "Slot 2 Dest" [ref=e214]: '0'
+                    - generic [ref=e215]: None
+                - generic [ref=e216]:
+                    - generic [ref=e217]: Slot 2 Amount
+                    - slider "Slot 2 Amount" [ref=e218]: '0'
+                    - generic [ref=e219]: '0.00'
+                - generic [ref=e220]:
+                    - generic [ref=e221]: Slot 3 Dest
+                    - slider "Slot 3 Dest" [ref=e222]: '0'
+                    - generic [ref=e223]: None
+                - generic [ref=e224]:
+                    - generic [ref=e225]: Slot 3 Amount
+                    - slider "Slot 3 Amount" [ref=e226]: '0'
+                    - generic [ref=e227]: '0.00'
+                - generic [ref=e228]:
+                    - generic [ref=e229]: Slot 4 Dest
+                    - slider "Slot 4 Dest" [ref=e230]: '0'
+                    - generic [ref=e231]: None
+                - generic [ref=e232]:
+                    - generic [ref=e233]: Slot 4 Amount
+                    - slider "Slot 4 Amount" [ref=e234]: '0'
+                    - generic [ref=e235]: '0.00'
+        - group "Keyboard (5 octaves)" [ref=e237]:
+            - generic [ref=e238]: Keyboard (5 octaves)
+            - generic [ref=e239]:
+                - generic [ref=e240]: Velocity
+                - slider "Velocity" [ref=e241]: '0.9'
+                - generic [ref=e242]: '0.90'
+            - generic [ref=e244]:
+                - button "C1" [ref=e245] [cursor=pointer]
+                - button "D1" [ref=e246] [cursor=pointer]
+                - button "E1" [ref=e247] [cursor=pointer]
+                - button "F1" [ref=e248] [cursor=pointer]
+                - button "G1" [ref=e249] [cursor=pointer]
+                - button "A1" [ref=e250] [cursor=pointer]
+                - button "B1" [ref=e251] [cursor=pointer]
+                - button "C2" [ref=e252] [cursor=pointer]
+                - button "D2" [ref=e253] [cursor=pointer]
+                - button "E2" [ref=e254] [cursor=pointer]
+                - button "F2" [ref=e255] [cursor=pointer]
+                - button "G2" [ref=e256] [cursor=pointer]
+                - button "A2" [ref=e257] [cursor=pointer]
+                - button "B2" [ref=e258] [cursor=pointer]
+                - button "C3" [ref=e259] [cursor=pointer]
+                - button "D3" [ref=e260] [cursor=pointer]
+                - button "E3" [ref=e261] [cursor=pointer]
+                - button "F3" [ref=e262] [cursor=pointer]
+                - button "G3" [ref=e263] [cursor=pointer]
+                - button "A3" [ref=e264] [cursor=pointer]
+                - button "B3" [ref=e265] [cursor=pointer]
+                - button "C4" [ref=e266] [cursor=pointer]
+                - button "D4" [ref=e267] [cursor=pointer]
+                - button "E4" [ref=e268] [cursor=pointer]
+                - button "F4" [ref=e269] [cursor=pointer]
+                - button "G4" [ref=e270] [cursor=pointer]
+                - button "A4" [ref=e271] [cursor=pointer]
+                - button "B4" [ref=e272] [cursor=pointer]
+                - button "C5" [ref=e273] [cursor=pointer]
+                - button "D5" [ref=e274] [cursor=pointer]
+                - button "E5" [ref=e275] [cursor=pointer]
+                - button "F5" [ref=e276] [cursor=pointer]
+                - button "G5" [ref=e277] [cursor=pointer]
+                - button "A5" [ref=e278] [cursor=pointer]
+                - button "B5" [ref=e279] [cursor=pointer]
+                - button "C6" [ref=e280] [cursor=pointer]
+                - button "C#1" [ref=e281] [cursor=pointer]
+                - button "D#1" [ref=e282] [cursor=pointer]
+                - button "F#1" [ref=e283] [cursor=pointer]
+                - button "G#1" [ref=e284] [cursor=pointer]
+                - button "A#1" [ref=e285] [cursor=pointer]
+                - button "C#2" [ref=e286] [cursor=pointer]
+                - button "D#2" [ref=e287] [cursor=pointer]
+                - button "F#2" [ref=e288] [cursor=pointer]
+                - button "G#2" [ref=e289] [cursor=pointer]
+                - button "A#2" [ref=e290] [cursor=pointer]
+                - button "C#3" [ref=e291] [cursor=pointer]
+                - button "D#3" [ref=e292] [cursor=pointer]
+                - button "F#3" [ref=e293] [cursor=pointer]
+                - button "G#3" [ref=e294] [cursor=pointer]
+                - button "A#3" [ref=e295] [cursor=pointer]
+                - button "C#4" [ref=e296] [cursor=pointer]
+                - button "D#4" [ref=e297] [cursor=pointer]
+                - button "F#4" [ref=e298] [cursor=pointer]
+                - button "G#4" [ref=e299] [cursor=pointer]
+                - button "A#4" [ref=e300] [cursor=pointer]
+                - button "C#5" [ref=e301] [cursor=pointer]
+                - button "D#5" [ref=e302] [cursor=pointer]
+                - button "F#5" [ref=e303] [cursor=pointer]
+                - button "G#5" [ref=e304] [cursor=pointer]
+                - button "A#5" [ref=e305] [cursor=pointer]
+```
