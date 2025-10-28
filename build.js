@@ -340,14 +340,47 @@ if (missingModules.length > 0) {
 console.log('✓ All modules validated in moduleMap');
 
 // Read worklet files
-const workletSynthProcessor = fs.readFileSync(
+let workletSynthProcessor = fs.readFileSync(
   path.join(__dirname, 'worklet/synth-processor.js'),
   'utf-8'
 );
-const workletFxChainProcessor = fs.readFileSync(
+let workletFxChainProcessor = fs.readFileSync(
   path.join(__dirname, 'worklet/fx-chain-processor.js'),
   'utf-8'
 );
+
+// Inline parameter registry into worklet processors
+// This allows worklets to use centralized parameter definitions without imports
+console.log('Inlining parameter registry into worklet processors...');
+const parameterRegistryPath = path.join(
+  __dirname,
+  'utils/parameter-registry.js'
+);
+const parameterRegistryCode = fs.readFileSync(parameterRegistryPath, 'utf-8');
+
+// Extract the relevant code from parameter registry (remove imports/exports)
+const parameterRegistryInline = parameterRegistryCode
+  .replace(/^import\s+.+$/gm, '') // Remove import statements
+  .replace(/^export\s+/gm, '') // Remove export keywords
+  .trim();
+
+// Find the inline marker in synth processor and insert parameter registry
+const inlineMarker =
+  /\/\/ BUILD_INLINE_START: parameter-registry\.js\s*\n([\s\S]*?)\n\s*\/\/ BUILD_INLINE_END: parameter-registry\.js/;
+if (inlineMarker.test(workletSynthProcessor)) {
+  workletSynthProcessor = workletSynthProcessor.replace(
+    inlineMarker,
+    `// BUILD_INLINE_START: parameter-registry.js
+// Parameter registry inlined by build.js from utils/parameter-registry.js
+${parameterRegistryInline}
+// BUILD_INLINE_END: parameter-registry.js`
+  );
+  console.log('✓ Inlined parameter registry into synth-processor.js');
+} else {
+  console.warn(
+    '⚠ Warning: Could not find inline marker in synth-processor.js'
+  );
+}
 
 // Validate that worklet processors are self-contained (no imports)
 function validateWorkletProcessor(code, filename) {

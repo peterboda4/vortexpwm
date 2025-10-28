@@ -170,6 +170,7 @@ Each slot has: destination (0-4) and amount (-1 to +1).
 - [audio/synth.js](audio/synth.js) - AudioWorklet controller and API
 - [midi/midi-input.js](midi/midi-input.js) - Web MIDI API wrapper
 - [index.html](index.html) - Single-page application with parameter controls
+- [utils/parameter-registry.js](utils/parameter-registry.js) - **Centralized parameter definitions** (single source of truth for all synth parameters, inlined into worklets during build)
 
 ### Effects System
 
@@ -183,7 +184,8 @@ Each slot has: destination (0-4) and amount (-1 to +1).
 
 - [utils/music.js](utils/music.js) - Music theory utilities (MIDI to frequency, note names)
 - [utils/logger.js](utils/logger.js) - Logging utility with level control
-- [build.js](build.js) - Production build script with worklet validation
+- [utils/parameter-registry.js](utils/parameter-registry.js) - Centralized parameter definitions (see below)
+- [build.js](build.js) - Production build script with worklet validation and parameter registry inlining
 - [scripts/create-effect.js](scripts/create-effect.js) - Effect scaffolding script
 
 ### Testing
@@ -209,17 +211,36 @@ See [worklet/archive/README.md](worklet/archive/README.md) for details on archiv
 
 1. **Development vs Production**: Development uses ES modules loaded directly; production uses a monolithic build
 2. **Secure context required**: AudioWorklet and Web MIDI only work over HTTPS or localhost
-3. **Single file worklets**: Both [worklet/synth-processor.js](worklet/synth-processor.js) and [worklet/fx-chain-processor.js](worklet/fx-chain-processor.js) must be self-contained (no imports) due to AudioWorklet scope limitations. Build script validates this.
+3. **Single file worklets**: Both [worklet/synth-processor.js](worklet/synth-processor.js) and [worklet/fx-chain-processor.js](worklet/fx-chain-processor.js) must be self-contained (no imports) due to AudioWorklet scope limitations. Build script validates this and inlines parameter registry.
 4. **Voice limit**: Configurable via `MAX_VOICES` constant at the top of [worklet/synth-processor.js](worklet/synth-processor.js) (default: 8 voices for performance and CPU headroom)
 5. **Sample rate**: Uses browser's default sample rate (typically 44.1kHz or 48kHz). All timing calculations are sample-rate independent.
-6. **Build process**: Automatic module collection - no need to manually maintain module lists when adding new files
+6. **Build process**: Automatic module collection - no need to manually maintain module lists when adding new files. Parameter registry is automatically inlined into worklets.
 7. **Thread safety**: Voice allocation uses message queue pattern to prevent race conditions between main thread and audio thread
 8. **Rate limiting**: Parameter updates throttled to 1ms per parameter (max 1000 Hz) to prevent DoS
 9. **Resource cleanup**: All event listeners and intervals cleaned up on page unload to prevent memory leaks
+10. **Parameter definitions**: All parameter definitions live in [utils/parameter-registry.js](utils/parameter-registry.js) - single source of truth for ranges, defaults, display formatting
 
-## Parameter Ranges
+## Parameter System
 
-All parameters are defined in [audio/synth.js](audio/synth.js) `parameterData` and must match the `parameterDescriptors` in [worklet/synth-processor.js](worklet/synth-processor.js).
+### Centralized Parameter Registry
+
+**IMPORTANT**: All synth parameters are now defined in a single source of truth: [utils/parameter-registry.js](utils/parameter-registry.js)
+
+This registry is used by:
+
+- [audio/synth.js](audio/synth.js) - Uses `getParameterData()` to initialize AudioWorkletNode
+- [worklet/synth-processor.js](worklet/synth-processor.js) - Uses `getParameterDescriptors()` for AudioWorkletProcessor (inlined during build)
+- [ui/parameter-controls.js](ui/parameter-controls.js) - Uses `getParameter()` to get display formatting and metadata
+
+**Adding a new parameter**:
+
+1. Add parameter definition to `SYNTH_PARAMETERS` array in [utils/parameter-registry.js](utils/parameter-registry.js)
+2. Add corresponding HTML input element to [index.html](index.html)
+3. Bind parameter in [ui/parameter-controls.js](ui/parameter-controls.js) using `bind(elementId, parameterName)`
+4. Use parameter in [worklet/synth-processor.js](worklet/synth-processor.js) via `parameters` object in `process()` method
+5. No need to manually update multiple files - the registry is the single source of truth
+
+### Parameter Ranges
 
 Key parameters:
 

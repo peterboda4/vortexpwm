@@ -1,5 +1,6 @@
 // audio/synth.js - sets up AudioContext, AudioWorklet, and exposes a simple API
 import { logger } from '../utils/logger.js';
+import { getParameterData } from '../utils/parameter-registry.js';
 
 // Check browser compatibility for required features
 export function checkBrowserCompatibility() {
@@ -124,53 +125,7 @@ export class Synth {
           numberOfInputs: 0,
           numberOfOutputs: 1,
           outputChannelCount: [2],
-          parameterData: {
-            oscillatorCoarseTune: 0,
-            oscillatorFineTune: 0,
-            pitchBend: 0,
-            pitchBendRange: 2,
-            oscillatorVolume: 1.0,
-            pulseWidth: 0.5,
-            pulseWidthModulationDepth: 0.5,
-            pulseWidthModulationRate: 2.0,
-            panningPosition: 0.0,
-            panningModulationDepth: 0.5,
-            panningModulationRate: 0.5,
-            envelopeAttack: 0.005,
-            envelopeDecay: 0.1,
-            envelopeSustain: 0.7,
-            envelopeRelease: 0.2,
-            subOscillatorVolume: 0.0,
-            frequencyModulationDepth: 0.0,
-            oscillator2Waveform: 0,
-            oscillator2CoarseTune: 0,
-            oscillator2FineTune: 0,
-            oscillator2Volume: 0.0,
-            subOscillator2Volume: 0.0,
-            oscillator2HardSync: 0,
-            ringModulatorVolume: 0.0,
-            noiseVolume: 0.0,
-            masterVolume: 0.4,
-            velocityAmount: 0.5,
-            aftertouchDest1: 0,
-            aftertouchAmount1: 0.0,
-            aftertouchDest2: 0,
-            aftertouchAmount2: 0.0,
-            aftertouchDest3: 0,
-            aftertouchAmount3: 0.0,
-            aftertouchDest4: 0,
-            aftertouchAmount4: 0.0,
-            filterCutoff: 5000,
-            filterResonance: 0.1,
-            hpfCutoff: 20,
-            hpfResonance: 0.1,
-            filterEnvAttack: 0.005,
-            filterEnvDecay: 0.1,
-            filterEnvSustain: 0.7,
-            filterEnvRelease: 0.2,
-            lpEnvAmount: 0.0,
-            hpEnvAmount: 0.0,
-          },
+          parameterData: getParameterData(),
         });
       } catch (err) {
         logger.error('Failed to create AudioWorkletNode:', err);
