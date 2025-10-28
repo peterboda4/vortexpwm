@@ -4,7 +4,7 @@ import { initMIDIUI } from './midi-controls.js';
 import { initParameterControls } from './parameter-controls.js';
 import { initKeyboard } from './keyboard.js';
 
-export function initUI({ synth, midiInput }) {
+export function initUI({ synth, midiInput, tempoManager }) {
   const byId = (id) => {
     const element = document.getElementById(id);
     if (!element) {
@@ -66,7 +66,7 @@ export function initUI({ synth, midiInput }) {
   }
 
   // Setup synth parameter controls
-  initParameterControls(synth);
+  initParameterControls(synth, tempoManager);
 
   // Setup keyboard
   initKeyboard(synth);

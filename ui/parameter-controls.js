@@ -1,7 +1,7 @@
 // ui/parameter-controls.js - synth parameter sliders and controls
 import { getParameter } from '../utils/parameter-registry.js';
 
-export function initParameterControls(synth) {
+export function initParameterControls(synth, tempoManager = null) {
   const byId = (id) => {
     const element = document.getElementById(id);
     if (!element) {
@@ -68,6 +68,28 @@ export function initParameterControls(synth) {
       e.target.blur(); // Immediately blur if somehow focused
     });
   };
+
+  // BPM control with TempoManager integration
+  if (tempoManager) {
+    const bpmEl = byId('bpm');
+    const bpmVal = byId('bpmVal');
+    if (bpmEl && bpmVal) {
+      const paramDef = getParameter('bpm');
+      const fmt = paramDef?.displayFormat || ((v) => Math.round(v));
+
+      const applyBPM = (v) => {
+        const bpmValue = +v;
+        bpmVal.textContent = fmt(bpmValue);
+        tempoManager.setBPM(bpmValue, 'manual');
+      };
+      applyBPM(bpmEl.value);
+      bpmEl.addEventListener('input', (e) => applyBPM(e.target.value));
+
+      // Prevent slider from being focusable
+      bpmEl.setAttribute('tabindex', '-1');
+      bpmEl.addEventListener('focus', (e) => e.target.blur());
+    }
+  }
 
   bind('coarse', 'oscillatorCoarseTune');
   bind('fine', 'oscillatorFineTune');

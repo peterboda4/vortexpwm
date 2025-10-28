@@ -527,6 +527,17 @@ export const SYNTH_PARAMETERS = [
     displayFormat: (v) => v.toFixed(2),
   },
 
+  // === TEMPO ===
+  {
+    name: 'bpm',
+    defaultValue: 120,
+    minValue: 20,
+    maxValue: 300,
+    automationRate: 'k-rate',
+    unit: 'BPM',
+    displayFormat: (v) => Math.round(v),
+  },
+
   // === MASTER ===
   {
     name: 'masterVolume',
