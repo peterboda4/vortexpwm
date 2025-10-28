@@ -24,6 +24,11 @@ export function initKeyboard(synth) {
     velocitySlider.addEventListener('input', (e) =>
       updateVelocity(e.target.value)
     );
+    // Prevent slider from being focusable (keyboard is for synth notes only)
+    velocitySlider.setAttribute('tabindex', '-1');
+    velocitySlider.addEventListener('focus', (e) => {
+      e.target.blur(); // Immediately blur if somehow focused
+    });
   }
 
   // Build 5-octave keyboard with all semitones (C1..C6 = 61 keys)
@@ -155,11 +160,11 @@ export function initKeyboard(synth) {
 
   // Helper to check if we should ignore keyboard events (e.g., when typing in text fields)
   const shouldIgnoreKeyboardEvent = (e) => {
-    // Ignore if target is an editable element
+    // Ignore if target is an editable element (but NOT range sliders)
     const target = e.target;
     const tagName = target.tagName.toLowerCase();
     if (
-      tagName === 'input' ||
+      (tagName === 'input' && target.type !== 'range') ||
       tagName === 'textarea' ||
       tagName === 'select' ||
       target.contentEditable === 'true'

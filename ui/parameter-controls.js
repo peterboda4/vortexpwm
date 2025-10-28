@@ -50,7 +50,14 @@ export function initParameterControls(synth) {
       throttledSetParam(+v);
     };
     apply(el.value);
-    el.addEventListener('input', (e) => apply(e.target.value));
+    el.addEventListener('input', (e) => {
+      apply(e.target.value);
+    });
+    // Prevent sliders from being focusable (keyboard is for synth notes only)
+    el.setAttribute('tabindex', '-1');
+    el.addEventListener('focus', (e) => {
+      e.target.blur(); // Immediately blur if somehow focused
+    });
   };
 
   bind('coarse', 'oscillatorCoarseTune', (v) => Math.round(+v));
@@ -93,7 +100,7 @@ export function initParameterControls(synth) {
   bind('panRate', 'panningModulationRate', (v) => (+v).toFixed(2));
   bind('attack', 'envelopeAttack', (v) => Math.round(+v * 1000));
   bind('decay', 'envelopeDecay', (v) => Math.round(+v * 1000));
-  bind('sustain', 'envelopeSustain', (v) => (+v).toFixed(3));
+  bind('sustain', 'envelopeSustain', (v) => Math.round(+v * 100));
   bind('release', 'envelopeRelease', (v) => Math.round(+v * 1000));
   bind('velocityAmt', 'velocityAmount', (v) => Math.round(+v * 100));
   bind('master', 'masterVolume', (v) => Math.round(+v * 100));
@@ -101,7 +108,7 @@ export function initParameterControls(synth) {
   // Filter envelope controls
   bind('filterAttack', 'filterEnvAttack', (v) => Math.round(+v * 1000));
   bind('filterDecay', 'filterEnvDecay', (v) => Math.round(+v * 1000));
-  bind('filterSustain', 'filterEnvSustain', (v) => (+v).toFixed(3));
+  bind('filterSustain', 'filterEnvSustain', (v) => Math.round(+v * 100));
   bind('filterRelease', 'filterEnvRelease', (v) => Math.round(+v * 1000));
   // LP/HP envelope amount: UI is -100 to +100, synth is -1.0 to +1.0
   const bindEnvAmount = (id, param) => {
