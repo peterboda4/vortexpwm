@@ -272,6 +272,109 @@ export const SYNTH_PARAMETERS = [
       v >= 1.0 ? v.toFixed(1) + 's' : Math.round(v * 1000) + 'ms',
   },
 
+  // === LFO2 ===
+  {
+    name: 'lfo2Rate',
+    defaultValue: 2.0,
+    minValue: 0.01,
+    maxValue: 50.0,
+    automationRate: 'a-rate',
+    unit: 'Hz',
+    displayFormat: (v) => v.toFixed(2),
+  },
+  {
+    name: 'lfo2Depth',
+    defaultValue: 0.0,
+    minValue: 0.0,
+    maxValue: 1.0,
+    automationRate: 'a-rate',
+    unit: '%',
+    displayFormat: (v) => Math.round(v * 100),
+  },
+  {
+    name: 'lfo2Waveform',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 5,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => {
+      const waveforms = [
+        'Sine',
+        'Triangle',
+        'Square',
+        'Saw Up',
+        'Saw Down',
+        'S&H',
+      ];
+      return waveforms[Math.round(v)] || 'Sine';
+    },
+  },
+  {
+    name: 'lfo2Phase',
+    defaultValue: 0.0,
+    minValue: 0.0,
+    maxValue: 360.0,
+    automationRate: 'k-rate',
+    unit: '°',
+    displayFormat: (v) => Math.round(v) + '°',
+  },
+  {
+    name: 'lfo2TempoSync',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 1,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => (v > 0 ? 'On' : 'Off'),
+  },
+  {
+    name: 'lfo2SyncDivision',
+    defaultValue: 4,
+    minValue: 0,
+    maxValue: 12,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => {
+      const divisions = [
+        '1/1',
+        '1/2',
+        '1/2D',
+        '1/2T',
+        '1/4',
+        '1/4D',
+        '1/4T',
+        '1/8',
+        '1/8D',
+        '1/8T',
+        '1/16',
+        '1/16D',
+        '1/16T',
+        '1/32',
+      ];
+      return divisions[Math.round(v)] || '1/4';
+    },
+  },
+  {
+    name: 'lfo2Retrigger',
+    defaultValue: 1,
+    minValue: 0,
+    maxValue: 1,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => (v > 0 ? 'Key' : 'Free'),
+  },
+  {
+    name: 'lfo2FadeIn',
+    defaultValue: 0.0,
+    minValue: 0.0,
+    maxValue: 5.0,
+    automationRate: 'k-rate',
+    unit: 's',
+    displayFormat: (v) =>
+      v >= 1.0 ? v.toFixed(1) + 's' : Math.round(v * 1000) + 'ms',
+  },
+
   // === PANNING ===
   {
     name: 'panningPosition',

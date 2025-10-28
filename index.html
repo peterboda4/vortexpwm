@@ -479,54 +479,9 @@
         </fieldset>
       </section>
 
-      <section>
-        <fieldset class="three-column">
-          <legend>Auto Pan</legend>
-          <slider-control>
-            <label class="label" for="panPos">Pan Position</label>
-            <input
-              class="slider"
-              id="panPos"
-              type="range"
-              min="-1"
-              max="1"
-              step="0.01"
-              value="0"
-            />
-            <span class="value" id="panPosVal">C</span>
-          </slider-control>
-          <slider-control>
-            <label class="label" for="panDepth">Pan Depth (%)</label>
-            <input
-              class="slider"
-              id="panDepth"
-              type="range"
-              min="0"
-              max="1"
-              step="0.001"
-              value="0"
-            />
-            <span class="value" id="panDepthVal">0</span>
-          </slider-control>
-          <slider-control>
-            <label class="label" for="panRate">Pan Rate (Hz)</label>
-            <input
-              class="slider"
-              id="panRate"
-              type="range"
-              min="0.1"
-              max="10"
-              step="0.01"
-              value="0.5"
-            />
-            <span class="value" id="panRateVal">0.50</span>
-          </slider-control>
-        </fieldset>
-      </section>
-
-      <section>
+      <section class="two-column">
         <fieldset>
-          <legend>LFO1 (Per-Voice)</legend>
+          <legend>LFO1</legend>
           <slider-control>
             <label class="label" for="lfo1Rate">Rate (Hz)</label>
             <input
@@ -636,6 +591,165 @@
               value="0"
             />
             <span class="value" id="lfo1FadeInVal">0ms</span>
+          </slider-control>
+        </fieldset>
+
+        <fieldset>
+          <legend>LFO2</legend>
+          <slider-control>
+            <label class="label" for="lfo2Rate">Rate (Hz)</label>
+            <input
+              class="slider"
+              id="lfo2Rate"
+              type="range"
+              min="0.01"
+              max="50"
+              step="0.01"
+              value="2"
+            />
+            <span class="value" id="lfo2RateVal">2.00</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo2Depth">Depth (%)</label>
+            <input
+              class="slider"
+              id="lfo2Depth"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="lfo2DepthVal">0</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo2Waveform">Waveform</label>
+            <select class="slider" id="lfo2Waveform">
+              <option value="0">Sine</option>
+              <option value="1">Triangle</option>
+              <option value="2">Square</option>
+              <option value="3">Saw Up</option>
+              <option value="4">Saw Down</option>
+              <option value="5">S&H</option>
+            </select>
+            <span class="value" id="lfo2WaveformVal">Sine</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo2Phase">Phase (°)</label>
+            <input
+              class="slider"
+              id="lfo2Phase"
+              type="range"
+              min="0"
+              max="360"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="lfo2PhaseVal">0°</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo2TempoSync">Tempo Sync</label>
+            <input
+              class="slider"
+              id="lfo2TempoSync"
+              type="range"
+              min="0"
+              max="1"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="lfo2TempoSyncVal">Off</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo2SyncDivision">Sync Division</label>
+            <select class="slider" id="lfo2SyncDivision">
+              <option value="0">1/1</option>
+              <option value="1">1/2</option>
+              <option value="2">1/2D</option>
+              <option value="3">1/2T</option>
+              <option value="4" selected>1/4</option>
+              <option value="5">1/4D</option>
+              <option value="6">1/4T</option>
+              <option value="7">1/8</option>
+              <option value="8">1/8D</option>
+              <option value="9">1/8T</option>
+              <option value="10">1/16</option>
+              <option value="11">1/16D</option>
+              <option value="12">1/16T</option>
+              <option value="13">1/32</option>
+            </select>
+            <span class="value" id="lfo2SyncDivisionVal">1/4</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo2Retrigger">Retrigger</label>
+            <input
+              class="slider"
+              id="lfo2Retrigger"
+              type="range"
+              min="0"
+              max="1"
+              step="1"
+              value="1"
+            />
+            <span class="value" id="lfo2RetriggerVal">Key</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo2FadeIn">Fade-in</label>
+            <input
+              class="slider"
+              id="lfo2FadeIn"
+              type="range"
+              min="0"
+              max="5"
+              step="0.01"
+              value="0"
+            />
+            <span class="value" id="lfo2FadeInVal">0ms</span>
+          </slider-control>
+        </fieldset>
+      </section>
+
+      <section>
+        <fieldset class="three-column">
+          <legend>Auto Pan</legend>
+          <slider-control>
+            <label class="label" for="panPos">Pan Position</label>
+            <input
+              class="slider"
+              id="panPos"
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value="0"
+            />
+            <span class="value" id="panPosVal">C</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="panDepth">Pan Depth (%)</label>
+            <input
+              class="slider"
+              id="panDepth"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="panDepthVal">0</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="panRate">Pan Rate (Hz)</label>
+            <input
+              class="slider"
+              id="panRate"
+              type="range"
+              min="0.1"
+              max="10"
+              step="0.01"
+              value="0.5"
+            />
+            <span class="value" id="panRateVal">0.50</span>
           </slider-control>
         </fieldset>
       </section>

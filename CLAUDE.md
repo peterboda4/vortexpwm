@@ -80,6 +80,7 @@ The synth follows a four-layer architecture:
    - PWM oscillator with PolyBLEP anti-aliasing for bandlimited synthesis
    - Per-voice 24dB IIR resonant lowpass filter (cascaded biquads)
    - ADSR envelope generator per voice
+   - Per-voice LFO1 with 6 waveforms and tempo sync (test: routed to Osc1 pitch)
    - Stereo panning with LFO and equal-power law
    - Sub-oscillator (one octave down)
    - Real-time voice count reporting to UI (every 100ms)
@@ -151,7 +152,7 @@ Per-voice modulation source with flexible control (added 2025-10-28):
 - **Key retrigger**: When enabled, LFO phase resets on each note-on
 - **Fade-in**: Optional exponential envelope applied to LFO depth
 
-**Current State**: LFO1 is fully implemented and running per-voice, but **not yet routed to any modulation destinations**. Future work will implement a modulation matrix to route LFO1 output to parameters like filter cutoff, pitch, PWM depth, etc.
+**Current State**: LFO1 is fully implemented and running per-voice. **TEST ROUTING**: Currently hardwired to Oscillator 1 pitch for testing purposes (±12 semitones at 100% depth = vibrato effect). Future work will implement a flexible modulation matrix to route LFO1 output to multiple destinations like filter cutoff, PWM depth, amplitude, etc.
 
 ### Aftertouch Modulation
 
