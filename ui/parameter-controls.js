@@ -1,4 +1,5 @@
 // ui/parameter-controls.js - synth parameter sliders and controls
+import { getParameter } from '../utils/parameter-registry.js';
 
 export function initParameterControls(synth) {
   const byId = (id) => {
@@ -35,10 +36,17 @@ export function initParameterControls(synth) {
   };
 
   // Bind slider helpers with throttled parameter updates
-  const bind = (id, param, fmt = (v) => v.toString()) => {
+  // If fmt is not provided, use displayFormat from parameter registry
+  const bind = (id, param, fmt) => {
     const el = byId(id);
     const val = byId(id + 'Val');
     if (!el || !val) return;
+
+    // Get format function from parameter registry if not provided
+    if (!fmt) {
+      const paramDef = getParameter(param);
+      fmt = paramDef?.displayFormat || ((v) => v.toString());
+    }
 
     // Throttle parameter updates to 16ms (~60fps)
     const throttledSetParam = throttle((value) => {
@@ -46,8 +54,9 @@ export function initParameterControls(synth) {
     }, 16);
 
     const apply = (v) => {
-      val.textContent = fmt(v);
-      throttledSetParam(+v);
+      const numValue = +v; // Convert to number first
+      val.textContent = fmt(numValue);
+      throttledSetParam(numValue);
     };
     apply(el.value);
     el.addEventListener('input', (e) => {
@@ -60,23 +69,24 @@ export function initParameterControls(synth) {
     });
   };
 
-  bind('coarse', 'oscillatorCoarseTune', (v) => Math.round(+v));
-  bind('fine', 'oscillatorFineTune', (v) => Math.round(+v));
-  bind('oscVolume', 'oscillatorVolume', (v) => Math.round(+v * 100));
-  bind('pulseWidth', 'pulseWidth', (v) => Math.round(+v * 100));
-  bind('pwmDepth', 'pulseWidthModulationDepth', (v) => Math.round(+v * 100));
-  bind('pwmRate', 'pulseWidthModulationRate', (v) => (+v).toFixed(2));
-  bind('subVolume', 'subOscillatorVolume', (v) => Math.round(+v * 100));
-  bind('fmDepth', 'frequencyModulationDepth', (v) => Math.round(+v * 100));
+  bind('coarse', 'oscillatorCoarseTune');
+  bind('fine', 'oscillatorFineTune');
+  bind('oscVolume', 'oscillatorVolume');
+  bind('pulseWidth', 'pulseWidth');
+  bind('pwmDepth', 'pulseWidthModulationDepth');
+  bind('pwmRate', 'pulseWidthModulationRate');
+  bind('subVolume', 'subOscillatorVolume');
+  bind('fmDepth', 'frequencyModulationDepth');
 
-  // Oscillator 2 controls
+  // Oscillator 2 waveform uses 'change' event instead of 'input'
   const osc2WaveformEl = byId('osc2Waveform');
   const osc2WaveformVal = byId('osc2WaveformVal');
   if (osc2WaveformEl && osc2WaveformVal) {
-    const waveformNames = ['Saw', 'Triangle', 'Sine', 'Square'];
+    const paramDef = getParameter('oscillator2Waveform');
+    const fmt = paramDef?.displayFormat || ((v) => 'Saw');
     const applyOsc2Waveform = (v) => {
       const idx = Math.round(+v);
-      osc2WaveformVal.textContent = waveformNames[idx] || 'Saw';
+      osc2WaveformVal.textContent = fmt(idx);
       synth.setParam('oscillator2Waveform', idx);
     };
     applyOsc2Waveform(osc2WaveformEl.value);
@@ -85,31 +95,28 @@ export function initParameterControls(synth) {
     );
   }
 
-  bind('osc2Coarse', 'oscillator2CoarseTune', (v) => Math.round(+v));
-  bind('osc2Fine', 'oscillator2FineTune', (v) => Math.round(+v));
-  bind('osc2Volume', 'oscillator2Volume', (v) => Math.round(+v * 100));
-  bind('sub2Volume', 'subOscillator2Volume', (v) => Math.round(+v * 100));
-  bind('hardSync', 'oscillator2HardSync', (v) => (+v > 0 ? 'On' : 'Off'));
-  bind('ringVolume', 'ringModulatorVolume', (v) => Math.round(+v * 100));
-  bind('noiseVolume', 'noiseVolume', (v) => Math.round(+v * 100));
-  bind('panPos', 'panningPosition', (v) => {
-    const f = +v;
-    return `${(f * 100).toFixed(0)}%`;
-  });
-  bind('panDepth', 'panningModulationDepth', (v) => Math.round(+v * 100));
-  bind('panRate', 'panningModulationRate', (v) => (+v).toFixed(2));
-  bind('attack', 'envelopeAttack', (v) => Math.round(+v * 1000));
-  bind('decay', 'envelopeDecay', (v) => Math.round(+v * 1000));
-  bind('sustain', 'envelopeSustain', (v) => Math.round(+v * 100));
-  bind('release', 'envelopeRelease', (v) => Math.round(+v * 1000));
-  bind('velocityAmt', 'velocityAmount', (v) => Math.round(+v * 100));
-  bind('master', 'masterVolume', (v) => Math.round(+v * 100));
+  bind('osc2Coarse', 'oscillator2CoarseTune');
+  bind('osc2Fine', 'oscillator2FineTune');
+  bind('osc2Volume', 'oscillator2Volume');
+  bind('sub2Volume', 'subOscillator2Volume');
+  bind('hardSync', 'oscillator2HardSync');
+  bind('ringVolume', 'ringModulatorVolume');
+  bind('noiseVolume', 'noiseVolume');
+  bind('panPos', 'panningPosition');
+  bind('panDepth', 'panningModulationDepth');
+  bind('panRate', 'panningModulationRate');
+  bind('attack', 'envelopeAttack');
+  bind('decay', 'envelopeDecay');
+  bind('sustain', 'envelopeSustain');
+  bind('release', 'envelopeRelease');
+  bind('velocityAmt', 'velocityAmount');
+  bind('master', 'masterVolume');
 
   // Filter envelope controls
-  bind('filterAttack', 'filterEnvAttack', (v) => Math.round(+v * 1000));
-  bind('filterDecay', 'filterEnvDecay', (v) => Math.round(+v * 1000));
-  bind('filterSustain', 'filterEnvSustain', (v) => Math.round(+v * 100));
-  bind('filterRelease', 'filterEnvRelease', (v) => Math.round(+v * 1000));
+  bind('filterAttack', 'filterEnvAttack');
+  bind('filterDecay', 'filterEnvDecay');
+  bind('filterSustain', 'filterEnvSustain');
+  bind('filterRelease', 'filterEnvRelease');
   // LP/HP envelope amount: UI is -100 to +100, synth is -1.0 to +1.0
   const bindEnvAmount = (id, param) => {
     const el = byId(id);
@@ -164,40 +171,17 @@ export function initParameterControls(synth) {
   };
 
   bindExpFilter('filterCutoff', 'filterCutoff', (v) => Math.round(v), true); // gentle=true
-  bind('filterResonance', 'filterResonance', (v) => Math.round(+v * 100));
+  bind('filterResonance', 'filterResonance');
   bindExpFilter('hpfCutoff', 'hpfCutoff', (v) => Math.round(v));
-  bind('hpfResonance', 'hpfResonance', (v) => Math.round(+v * 100));
+  bind('hpfResonance', 'hpfResonance');
 
-  // Aftertouch destination formatter
-  const destNames = [
-    'None',
-    'O1Pitch',
-    'O1Vol',
-    'Sub1Vol',
-    'O1PW',
-    'PWMRate',
-    'FMDepth',
-    'O2Pitch',
-    'O2Vol',
-    'Sub2Vol',
-    'RingVol',
-    'NoiseMix',
-    'LPCut',
-    'LPRes',
-    'HPCut',
-    'HPRes',
-    'PanDepth',
-    'PanRate',
-  ];
-  const fmtDest = (v) => destNames[Math.round(+v)] || 'None';
-
-  // Aftertouch modulation slots
-  bind('atDest1', 'aftertouchDest1', fmtDest);
-  bind('atAmount1', 'aftertouchAmount1', (v) => (+v).toFixed(2));
-  bind('atDest2', 'aftertouchDest2', fmtDest);
-  bind('atAmount2', 'aftertouchAmount2', (v) => (+v).toFixed(2));
-  bind('atDest3', 'aftertouchDest3', fmtDest);
-  bind('atAmount3', 'aftertouchAmount3', (v) => (+v).toFixed(2));
-  bind('atDest4', 'aftertouchDest4', fmtDest);
-  bind('atAmount4', 'aftertouchAmount4', (v) => (+v).toFixed(2));
+  // Aftertouch modulation slots (use parameter registry for formatting)
+  bind('atDest1', 'aftertouchDest1');
+  bind('atAmount1', 'aftertouchAmount1');
+  bind('atDest2', 'aftertouchDest2');
+  bind('atAmount2', 'aftertouchAmount2');
+  bind('atDest3', 'aftertouchDest3');
+  bind('atAmount3', 'aftertouchAmount3');
+  bind('atDest4', 'aftertouchDest4');
+  bind('atAmount4', 'aftertouchAmount4');
 }

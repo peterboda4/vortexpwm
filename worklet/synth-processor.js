@@ -2,6 +2,17 @@
 // Note: run from a secure context (https or localhost).
 
 // =============================================================================
+// PARAMETER REGISTRY (INLINED BY BUILD SCRIPT)
+// =============================================================================
+// IMPORTANT: Do not edit this section manually!
+// Parameter definitions are inlined from utils/parameter-registry.js during build
+// In development mode, parameterDescriptors are defined below for compatibility
+
+// BUILD_INLINE_START: parameter-registry.js
+// This comment marks where build.js should inline the parameter registry code
+// BUILD_INLINE_END: parameter-registry.js
+
+// =============================================================================
 // CONFIGURATION
 // =============================================================================
 // Maximum number of simultaneous voices (polyphony limit)
@@ -699,6 +710,14 @@ class MessageQueue {
 
 class PolyPWMSynthProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
+    // If parameter registry was inlined by build script, use it
+    // Otherwise fall back to manual definitions (development mode)
+    if (typeof getParameterDescriptors === 'function') {
+      return getParameterDescriptors();
+    }
+
+    // FALLBACK: Manual parameter definitions for development mode
+    // These should match utils/parameter-registry.js
     return [
       {
         name: 'oscillatorCoarseTune',
