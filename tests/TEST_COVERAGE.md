@@ -14,12 +14,15 @@
 ### Core Utilities
 
 #### `tests/music.test.js` - **94 tests**
+
 Music theory utilities and BPM conversion functions.
 
 **Covered modules**:
+
 - `utils/music.js`
 
 **Test coverage**:
+
 - `midiFromName()` - MIDI note name conversion (6 tests)
 - `midiToNoteName()` - MIDI to note name conversion (5 tests)
 - `clamp()` - Value clamping utility (4 tests)
@@ -40,12 +43,15 @@ Music theory utilities and BPM conversion functions.
 ---
 
 #### `tests/tempo-manager.test.js` - **29 tests**
+
 TempoManager class for BPM state management.
 
 **Covered modules**:
+
 - `utils/tempo-manager.js`
 
 **Test coverage**:
+
 - `constructor()` - Instance creation and initialization (3 tests)
 - `setBPM()` - BPM setting with validation and clamping (10 tests)
 - `getBPM()` - BPM getter (2 tests)
@@ -59,12 +65,15 @@ TempoManager class for BPM state management.
 ---
 
 #### `tests/logger.test.js` - **20 tests**
+
 Logging utility with level control.
 
 **Covered modules**:
+
 - `utils/logger.js`
 
 **Test coverage**:
+
 - Log level filtering
 - Console output
 - Message formatting
@@ -75,9 +84,11 @@ Logging utility with level control.
 ---
 
 #### `tests/dsp-math.test.js` - **24 tests**
+
 DSP mathematical functions for audio processing.
 
 **Test coverage**:
+
 - MIDI to frequency conversion
 - Envelope curves
 - Panning laws
@@ -92,12 +103,15 @@ DSP mathematical functions for audio processing.
 ### Effects System
 
 #### `tests/parameter-manager.test.js` - **22 tests**
+
 Effect parameter management system.
 
 **Covered modules**:
+
 - `fx/parameter-manager.js`
 
 **Test coverage**:
+
 - Parameter validation
 - Change listeners
 - Preset management
@@ -108,17 +122,21 @@ Effect parameter management system.
 ---
 
 #### `tests/fx-controller.test.js`
+
 FX controller integration tests.
 
 **Covered modules**:
+
 - `fx/fx-controller.js`
 
 ---
 
 #### `tests/effects/*.test.js`
+
 Individual effect unit tests (11 effect types).
 
 **Test files**:
+
 - `tests/effects/delay.test.js`
 - `tests/effects/reverb.test.js`
 - `tests/effects/chorus.test.js`
@@ -135,14 +153,14 @@ Individual effect unit tests (11 effect types).
 
 ## Coverage by Module
 
-| Module | Tests | Coverage | Notes |
-|--------|-------|----------|-------|
-| `utils/music.js` | 94 | ~100% | Complete BPM conversion coverage |
-| `utils/tempo-manager.js` | 29 | 100% | Full class coverage |
-| `utils/logger.js` | 20 | ~100% | All log levels tested |
-| `fx/parameter-manager.js` | 22 | ~100% | Full parameter lifecycle |
-| DSP math functions | 24 | ~95% | Core algorithms covered |
-| Effects system | ~50+ | ~90% | Individual effects tested |
+| Module                    | Tests | Coverage | Notes                            |
+| ------------------------- | ----- | -------- | -------------------------------- |
+| `utils/music.js`          | 94    | ~100%    | Complete BPM conversion coverage |
+| `utils/tempo-manager.js`  | 29    | 100%     | Full class coverage              |
+| `utils/logger.js`         | 20    | ~100%    | All log levels tested            |
+| `fx/parameter-manager.js` | 22    | ~100%    | Full parameter lifecycle         |
+| DSP math functions        | 24    | ~95%     | Core algorithms covered          |
+| Effects system            | ~50+  | ~90%     | Individual effects tested        |
 
 ---
 
@@ -175,12 +193,14 @@ node --test tests/tempo-manager.test.js
 ## Recent Additions (2025-10-28)
 
 ### BPM/Tempo System
+
 - ✅ Added 29 tests for `TempoManager` class
 - ✅ Added 61 tests for BPM → Hz conversion utilities
 - ✅ Added 10 tests for tempo division helpers
 - **Total new tests**: ~100 tests added
 
 **New test coverage includes**:
+
 - BPM range validation (20-300)
 - Tempo division calculations (basic, dotted, triplet)
 - TempoManager state management

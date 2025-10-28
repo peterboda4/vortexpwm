@@ -68,11 +68,12 @@ The synth follows a four-layer architecture:
 
 3. **DSP Core** ([worklet/synth-processor.js](worklet/synth-processor.js))
    - Runs in AudioWorklet thread (separate from main thread)
-   - **Modular architecture** with 6 classes (refactored 2025-10-27):
+   - **Modular architecture** with 7 classes (updated 2025-10-28):
      - `IIRFilter` - 24dB/18dB biquad filter with coefficient caching
      - `Envelope` - ADSR envelope generator with exponential curves
+     - `LFO` - Low frequency oscillator with 6 waveforms and tempo sync
      - `Oscillator` - PWM + PolyBLEP anti-aliasing + multi-waveform generator
-     - `Voice` - Voice state container (oscillators, envelopes, filters)
+     - `Voice` - Voice state container (oscillators, envelopes, filters, LFOs)
      - `VoiceAllocator` - Polyphonic voice management with intelligent stealing
      - `MessageQueue` - Thread-safe message queue for voice events
    - Message queue for thread-safe voice allocation (prevents race conditions)
@@ -127,6 +128,31 @@ Polyphonic voice allocation with intelligent voice stealing (default: 8 voices):
 
 **Auto-Pan**: Stereo positioning with LFO modulation. Uses equal-power panning law to maintain consistent perceived loudness.
 
+### LFO1 (Low Frequency Oscillator)
+
+Per-voice modulation source with flexible control (added 2025-10-28):
+
+**Waveforms**: Sine, Triangle, Square, Saw Up, Saw Down, Sample & Hold (Random)
+
+**Parameters**:
+
+- **Rate**: 0.01-50 Hz (free-running mode)
+- **Depth**: 0-100% output level
+- **Phase**: 0-360° initial offset (for key retrigger mode)
+- **Tempo Sync**: On/Off toggle for BPM-based timing
+- **Sync Division**: 13 divisions (1/1, 1/2, 1/4, 1/8, 1/16, 1/32, with dotted and triplet variants)
+- **Retrigger**: Free-running or reset phase on note-on
+- **Fade-in**: 0-5s exponential fade-in envelope
+
+**Operation**:
+
+- **Per-voice**: Each voice has its own LFO instance (polyphonic)
+- **Tempo sync**: When enabled, rate is locked to BPM with musical divisions
+- **Key retrigger**: When enabled, LFO phase resets on each note-on
+- **Fade-in**: Optional exponential envelope applied to LFO depth
+
+**Current State**: LFO1 is fully implemented and running per-voice, but **not yet routed to any modulation destinations**. Future work will implement a modulation matrix to route LFO1 output to parameters like filter cutoff, pitch, PWM depth, etc.
+
 ### Aftertouch Modulation
 
 4-slot modulation matrix where channel aftertouch can modulate:
@@ -166,6 +192,7 @@ Each slot has: destination (0-4) and amount (-1 to +1).
 The synthesizer includes a flexible BPM-based tempo system for tempo-synced modulation and effects.
 
 **BPM Management**:
+
 - **Range**: 20-300 BPM (default: 120)
 - **TempoManager** ([utils/tempo-manager.js](utils/tempo-manager.js)): Centralized tempo state management
 - **UI**: BPM slider in Tempo section (top of controls)
@@ -173,6 +200,7 @@ The synthesizer includes a flexible BPM-based tempo system for tempo-synced modu
 - **Future**: MIDI Clock sync support (architecture ready, not yet implemented)
 
 **Tempo Conversions** ([utils/music.js](utils/music.js)):
+
 - `bpmToHz(bpm, division)` - Convert BPM to frequency (Hz) for LFO/effect sync
 - **Divisions**: Standard note divisions with dotted and triplet variants
   - Basic: 1/1, 1/2, 1/4, 1/8, 1/16, 1/32
@@ -182,6 +210,7 @@ The synthesizer includes a flexible BPM-based tempo system for tempo-synced modu
 - **Usage**: Intended for future LFO tempo sync and delay time sync features
 
 **Future Use Cases**:
+
 - LFO tempo sync (e.g., 1/4 note vibrato locked to BPM)
 - Delay time sync (e.g., 1/8 note delay timing)
 - Modulation matrix tempo-based sources
@@ -275,6 +304,7 @@ Key parameters:
 - Oscillator tuning: ±48 semitones coarse, ±50 cents fine
 - Pulse width: 1-99% (clamped to 5-95% internally)
 - PWM LFO: 0.1-10 Hz rate, 0-100% depth
+- LFO1: 0.01-50 Hz rate, 0-100% depth, 0-360° phase, 0-5s fade-in
 - Filter: 20Hz-20kHz cutoff, 0-95% resonance
 - Envelope: 0-6s attack/decay/release (both amp and filter envelopes)
 - Pitch bend: ±0-24 semitones configurable range

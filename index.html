@@ -526,6 +526,122 @@
 
       <section>
         <fieldset>
+          <legend>LFO1 (Per-Voice)</legend>
+          <slider-control>
+            <label class="label" for="lfo1Rate">Rate (Hz)</label>
+            <input
+              class="slider"
+              id="lfo1Rate"
+              type="range"
+              min="0.01"
+              max="50"
+              step="0.01"
+              value="2"
+            />
+            <span class="value" id="lfo1RateVal">2.00</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo1Depth">Depth (%)</label>
+            <input
+              class="slider"
+              id="lfo1Depth"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <span class="value" id="lfo1DepthVal">0</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo1Waveform">Waveform</label>
+            <select class="slider" id="lfo1Waveform">
+              <option value="0">Sine</option>
+              <option value="1">Triangle</option>
+              <option value="2">Square</option>
+              <option value="3">Saw Up</option>
+              <option value="4">Saw Down</option>
+              <option value="5">S&H</option>
+            </select>
+            <span class="value" id="lfo1WaveformVal">Sine</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo1Phase">Phase (°)</label>
+            <input
+              class="slider"
+              id="lfo1Phase"
+              type="range"
+              min="0"
+              max="360"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="lfo1PhaseVal">0°</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo1TempoSync">Tempo Sync</label>
+            <input
+              class="slider"
+              id="lfo1TempoSync"
+              type="range"
+              min="0"
+              max="1"
+              step="1"
+              value="0"
+            />
+            <span class="value" id="lfo1TempoSyncVal">Off</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo1SyncDivision">Sync Division</label>
+            <select class="slider" id="lfo1SyncDivision">
+              <option value="0">1/1</option>
+              <option value="1">1/2</option>
+              <option value="2">1/2D</option>
+              <option value="3">1/2T</option>
+              <option value="4" selected>1/4</option>
+              <option value="5">1/4D</option>
+              <option value="6">1/4T</option>
+              <option value="7">1/8</option>
+              <option value="8">1/8D</option>
+              <option value="9">1/8T</option>
+              <option value="10">1/16</option>
+              <option value="11">1/16D</option>
+              <option value="12">1/16T</option>
+              <option value="13">1/32</option>
+            </select>
+            <span class="value" id="lfo1SyncDivisionVal">1/4</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo1Retrigger">Retrigger</label>
+            <input
+              class="slider"
+              id="lfo1Retrigger"
+              type="range"
+              min="0"
+              max="1"
+              step="1"
+              value="1"
+            />
+            <span class="value" id="lfo1RetriggerVal">Key</span>
+          </slider-control>
+          <slider-control>
+            <label class="label" for="lfo1FadeIn">Fade-in</label>
+            <input
+              class="slider"
+              id="lfo1FadeIn"
+              type="range"
+              min="0"
+              max="5"
+              step="0.01"
+              value="0"
+            />
+            <span class="value" id="lfo1FadeInVal">0ms</span>
+          </slider-control>
+        </fieldset>
+      </section>
+
+      <section>
+        <fieldset>
           <legend>FX Chain (Drag & Drop)</legend>
           <div class="fx-section">
             <div class="fx-library-container">
