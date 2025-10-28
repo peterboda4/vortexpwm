@@ -524,24 +524,40 @@ ${(() => {
     classNames.push({ id: match[1], class: match[2] });
   }
 
-  // Generate variable names for destructuring
-  const varNames = classNames.map((_, i) => `effect${i}`).join(', ');
-
-  // Generate assignments
+  // Generate assignments with null-safety for failed imports
   const assignments = classNames
-    .map((cn, i) => `window.${cn.class} = effect${i}.${cn.class};`)
-    .join('\n  ');
+    .map((cn, i) => `  if (results[${i}].status === 'fulfilled') {
+    window.${cn.class} = results[${i}].value.${cn.class};
+  } else {
+    console.warn('[Build] Failed to load effect "${cn.id}":', results[${i}].reason);
+  }`)
+    .join('\n');
 
-  return `Promise.all([
+  return `Promise.allSettled([
   ${imports}
-]).then(([${varNames}]) => {
+]).then((results) => {
   // Make effect classes globally available (auto-generated from registry)
-  ${assignments}
+  // Gracefully skip failed effect loads
+${assignments}
 
-  // Now load main module
-  import('${mainJsDataUrl}');
+  // Always load main module, even if some effects failed
+  import('${mainJsDataUrl}').catch(err => {
+    console.error('[Build] Critical: Failed to load main module:', err);
+    // Show user-friendly error if main module fails
+    document.body.innerHTML = \`
+      <div style="padding: 40px; font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #d32f2f;">Failed to Start Synthesizer</h1>
+        <p>The application encountered a critical error during startup.</p>
+        <details style="margin-top: 20px; background: #f5f5f5; padding: 10px; border-radius: 4px;">
+          <summary style="cursor: pointer; font-weight: bold;">Error Details</summary>
+          <pre style="margin-top: 10px; overflow-x: auto;">\${err.stack || err.message}</pre>
+        </details>
+        <p style="margin-top: 20px; color: #666;">Try refreshing the page or check the browser console for more information.</p>
+      </div>
+    \`;
+  });
 }).catch(err => {
-  console.error('[Build] Failed to load effect classes:', err);
+  console.error('[Build] Catastrophic failure during effect loading:', err);
 });`;
 })()}
 `;
