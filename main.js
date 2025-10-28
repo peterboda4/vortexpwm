@@ -3,6 +3,7 @@ import { Synth, checkBrowserCompatibility } from './audio/synth.js';
 import { MIDIInput } from './midi/midi-input.js';
 import { FXControls } from './ui/fx-controls.js';
 import { destroyKeyboard } from './ui/keyboard.js';
+import { TempoManager } from './utils/tempo-manager.js';
 
 // Helper to show user-visible error messages
 function showError(title, message) {
@@ -64,6 +65,15 @@ async function initApp() {
       // Continue without FX - synth still works
     }
 
+    // Initialize tempo manager
+    const tempoManager = new TempoManager();
+    tempoManager.onChange = (bpm, source) => {
+      console.log(`BPM changed to ${bpm} (source: ${source})`);
+      synth.setParam('bpm', bpm);
+    };
+    // Set initial BPM
+    synth.setParam('bpm', tempoManager.getBPM());
+
     // Initialize MIDI input
     const midiInput = new MIDIInput(synth);
     const midiEnabled = await midiInput.init();
@@ -75,7 +85,12 @@ async function initApp() {
     }
 
     // Wire UI
-    initUI({ synth, state, midiInput: midiEnabled ? midiInput : null });
+    initUI({
+      synth,
+      state,
+      midiInput: midiEnabled ? midiInput : null,
+      tempoManager,
+    });
 
     // Initialize FX UI if FX controller is available
     if (fxController) {

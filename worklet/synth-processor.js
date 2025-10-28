@@ -19,6 +19,43 @@
 // Change this value to adjust polyphony. Higher values = more CPU usage.
 const MAX_VOICES = 8;
 
+// Tempo divisions mapping (same as TEMPO_DIVISIONS in utils/music.js)
+// Cannot import from utils due to AudioWorklet scope limitations
+const TEMPO_DIVISIONS = {
+  '1/1': 0.25,
+  '1/2': 0.5,
+  '1/2D': 0.75,
+  '1/2T': 0.333333,
+  '1/4': 1.0,
+  '1/4D': 1.5,
+  '1/4T': 0.666667,
+  '1/8': 2.0,
+  '1/8D': 3.0,
+  '1/8T': 1.333333,
+  '1/16': 4.0,
+  '1/16D': 6.0,
+  '1/16T': 2.666667,
+  '1/32': 8.0,
+};
+
+// Tempo division index array (matches parameter registry order)
+const TEMPO_DIVISION_NAMES = [
+  '1/1',
+  '1/2',
+  '1/2D',
+  '1/2T',
+  '1/4',
+  '1/4D',
+  '1/4T',
+  '1/8',
+  '1/8D',
+  '1/8T',
+  '1/16',
+  '1/16D',
+  '1/16T',
+  '1/32',
+];
+
 // =============================================================================
 // AUDIO PROCESSING
 // =============================================================================
@@ -306,6 +343,126 @@ class Envelope {
 }
 
 /**
+ * LFO (Low Frequency Oscillator)
+ * Per-voice modulation source with multiple waveforms and tempo sync
+ * Supports: Sine, Triangle, Square, Saw Up, Saw Down, Random (S&H)
+ */
+class LFO {
+  constructor() {
+    this.phase = 0.0;
+    this.lastSampleHold = 0.0;
+    this.fadeInValue = 0.0;
+    this.activationTime = 0;
+  }
+
+  /**
+   * Reset LFO state
+   * @param {number} initialPhase - Initial phase offset (0-1)
+   */
+  reset(initialPhase = 0.0) {
+    this.phase = initialPhase;
+    this.lastSampleHold = Math.random() * 2.0 - 1.0;
+    this.fadeInValue = 0.0;
+    this.activationTime = 0;
+  }
+
+  /**
+   * Trigger LFO (resets phase and fade-in if retrigger mode enabled)
+   * @param {number} initialPhase - Initial phase offset (0-1)
+   * @param {number} currentFrame - Current frame number
+   */
+  trigger(initialPhase, currentFrame) {
+    this.phase = initialPhase;
+    this.fadeInValue = 0.0;
+    this.activationTime = currentFrame;
+  }
+
+  /**
+   * Generate LFO waveform sample
+   * @param {number} waveform - Waveform type (0=Sine, 1=Tri, 2=Sqr, 3=SawUp, 4=SawDown, 5=S&H)
+   * @param {number} phase - Current phase (0-1)
+   * @param {number} prevPhase - Previous phase (0-1) for wrap detection
+   * @param {number} phaseInc - Phase increment per sample
+   * @returns {number} Sample value (-1 to 1)
+   */
+  generateWaveform(waveform, phase, prevPhase = 0, phaseInc = 0) {
+    const waveIdx = Math.round(waveform);
+
+    switch (waveIdx) {
+      case 0: // Sine
+        return Math.sin(2.0 * Math.PI * phase);
+
+      case 1: // Triangle
+        return phase < 0.5 ? 4.0 * phase - 1.0 : 3.0 - 4.0 * phase;
+
+      case 2: // Square
+        return phase < 0.5 ? 1.0 : -1.0;
+
+      case 3: // Saw Up
+        return 2.0 * phase - 1.0;
+
+      case 4: // Saw Down
+        return 1.0 - 2.0 * phase;
+
+      case 5: // Sample & Hold (Random)
+        // Generate new random value at phase wrap
+        // Wrap detection: phase wrapped if current < previous (accounting for modulo)
+        if (phase < prevPhase) {
+          // Phase wrapped from ~1.0 to ~0.0 (new cycle started)
+          this.lastSampleHold = Math.random() * 2.0 - 1.0;
+        }
+        return this.lastSampleHold;
+
+      default:
+        return 0.0;
+    }
+  }
+
+  /**
+   * Process one sample of LFO output
+   * @param {number} rate - LFO rate in Hz
+   * @param {number} depth - LFO depth (0-1)
+   * @param {number} waveform - Waveform type (0-5)
+   * @param {number} fadeInTime - Fade-in time in seconds
+   * @param {number} currentFrame - Current frame number
+   * @param {number} sampleRate - Sample rate in Hz
+   * @returns {number} LFO output value (-depth to +depth)
+   */
+  process(rate, depth, waveform, fadeInTime, currentFrame, sampleRate) {
+    // Store previous phase for wrap detection (S&H)
+    const prevPhase = this.phase;
+
+    // Advance phase
+    const phaseInc = rate / sampleRate;
+    this.phase += phaseInc;
+    this.phase %= 1.0;
+
+    // Generate waveform (pass both current and previous phase for S&H)
+    const rawValue = this.generateWaveform(
+      waveform,
+      this.phase,
+      prevPhase,
+      phaseInc
+    );
+
+    // Apply fade-in envelope (exponential curve)
+    if (fadeInTime > 0.0001) {
+      const fadeInCoeff =
+        1.0 - Math.exp(-1.0 / ((fadeInTime / 4.6) * sampleRate));
+      this.fadeInValue += (1.0 - this.fadeInValue) * fadeInCoeff;
+
+      // Clamp to prevent overshooting
+      if (this.fadeInValue > 0.9999) this.fadeInValue = 1.0;
+
+      return rawValue * depth * this.fadeInValue;
+    }
+
+    // No fade-in
+    return rawValue * depth;
+  }
+}
+
+/**
  * Oscillator with PWM, PolyBLEP anti-aliasing, and multiple waveforms
  * Supports pulse wave (Osc1) and saw/triangle/sine/square (Osc2)
  */
@@ -428,6 +585,10 @@ class Voice {
     this.ampEnv = new Envelope();
     this.filterEnv = new Envelope();
 
+    // LFOs
+    this.lfo1 = new LFO();
+    this.lfo2 = new LFO();
+
     // Filters
     this.lpf = new IIRFilter();
     this.hpf = new IIRFilter();
@@ -455,6 +616,10 @@ class Voice {
     this.ampEnv.reset();
     this.filterEnv.reset();
 
+    // Reset LFOs
+    this.lfo1.reset(0.0);
+    this.lfo2.reset(0.0);
+
     // Reset filters
     this.lpf.reset();
     this.hpf.reset();
@@ -472,8 +637,20 @@ class Voice {
    * @param {number} midiNote - MIDI note number (0-127)
    * @param {number} velocity - Velocity (0-1)
    * @param {number} currentFrame - Current frame number
+   * @param {number} lfo1Phase - LFO1 initial phase (0-1)
+   * @param {boolean} lfo1Retrigger - Whether to retrigger LFO1
+   * @param {number} lfo2Phase - LFO2 initial phase (0-1)
+   * @param {boolean} lfo2Retrigger - Whether to retrigger LFO2
    */
-  trigger(midiNote, velocity, currentFrame) {
+  trigger(
+    midiNote,
+    velocity,
+    currentFrame,
+    lfo1Phase = 0.0,
+    lfo1Retrigger = true,
+    lfo2Phase = 0.0,
+    lfo2Retrigger = true
+  ) {
     this.midi = midiNote;
     this.velocity = velocity;
     this.gate = true;
@@ -481,6 +658,24 @@ class Voice {
     this.activationTime = currentFrame;
     this.ampEnv.trigger();
     this.filterEnv.trigger();
+
+    // Always reset LFO1 fade-in on note-on
+    this.lfo1.fadeInValue = 0.0;
+    this.lfo1.activationTime = currentFrame;
+
+    // Retrigger LFO1 phase if enabled (free-running mode keeps phase continuous)
+    if (lfo1Retrigger) {
+      this.lfo1.phase = lfo1Phase;
+    }
+
+    // Always reset LFO2 fade-in on note-on
+    this.lfo2.fadeInValue = 0.0;
+    this.lfo2.activationTime = currentFrame;
+
+    // Retrigger LFO2 phase if enabled (free-running mode keeps phase continuous)
+    if (lfo2Retrigger) {
+      this.lfo2.phase = lfo2Phase;
+    }
   }
 
   /**
@@ -554,8 +749,20 @@ class VoiceAllocator {
    * @param {number} midiNote - MIDI note number
    * @param {number} velocity - Velocity (0-1)
    * @param {number} currentFrame - Current frame number
+   * @param {number} lfo1Phase - LFO1 initial phase (0-1)
+   * @param {boolean} lfo1Retrigger - Whether to retrigger LFO1
+   * @param {number} lfo2Phase - LFO2 initial phase (0-1)
+   * @param {boolean} lfo2Retrigger - Whether to retrigger LFO2
    */
-  noteOn(midiNote, velocity, currentFrame) {
+  noteOn(
+    midiNote,
+    velocity,
+    currentFrame,
+    lfo1Phase = 0.0,
+    lfo1Retrigger = true,
+    lfo2Phase = 0.0,
+    lfo2Retrigger = true
+  ) {
     // If note is already playing, retrigger it
     if (this.noteToVoice.has(midiNote)) {
       const voiceIndex = this.noteToVoice.get(midiNote);
@@ -572,7 +779,15 @@ class VoiceAllocator {
       voice.hpf.reset();
 
       // Trigger with new velocity
-      voice.trigger(midiNote, velocity, currentFrame);
+      voice.trigger(
+        midiNote,
+        velocity,
+        currentFrame,
+        lfo1Phase,
+        lfo1Retrigger,
+        lfo2Phase,
+        lfo2Retrigger
+      );
       return;
     }
 
@@ -585,7 +800,15 @@ class VoiceAllocator {
       voice.reset();
     }
 
-    voice.trigger(midiNote, velocity, currentFrame);
+    voice.trigger(
+      midiNote,
+      velocity,
+      currentFrame,
+      lfo1Phase,
+      lfo1Retrigger,
+      lfo2Phase,
+      lfo2Retrigger
+    );
     this.noteToVoice.set(midiNote, voiceIndex);
   }
 
@@ -1264,6 +1487,82 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       else if (dest === 17) aftertouchMods.panRate += this.aftertouch * amount;
     }
 
+    // ===== LFO1 Processing =====
+    // Calculate LFO1 rate (tempo-synced or free-running)
+    let lfo1RateHz =
+      params.lfo1Rate.length > 1
+        ? params.lfo1Rate[sampleIndex]
+        : params.lfo1Rate[0];
+
+    // Apply tempo sync if enabled
+    if (params.lfo1TempoSync > 0) {
+      const divisionIndex = Math.round(params.lfo1SyncDivision);
+      const divisionName = TEMPO_DIVISION_NAMES[divisionIndex] || '1/4';
+      const multiplier = TEMPO_DIVISIONS[divisionName] || 1.0;
+
+      // Convert BPM to Hz: Hz = (BPM / 60) * multiplier
+      lfo1RateHz = (params.bpm / 60.0) * multiplier;
+    }
+
+    // Get LFO1 depth
+    let lfo1DepthNow =
+      params.lfo1Depth.length > 1
+        ? params.lfo1Depth[sampleIndex]
+        : params.lfo1Depth[0];
+
+    // Process LFO1 and get output value
+    const lfo1Output = voice.lfo1.process(
+      lfo1RateHz,
+      lfo1DepthNow,
+      params.lfo1Waveform,
+      params.lfo1FadeIn,
+      this.currentFrame + sampleIndex,
+      sr
+    );
+
+    // TEST: Route LFO1 to Osc1 pitch (vibrato)
+    // LFO1 output range: -depth to +depth (where depth is 0-1)
+    // Scale to ±12 semitones maximum (one octave range)
+    // When depth=100%, lfo1Output ranges from -1 to +1, giving ±12 semitones
+    const lfo1ToPitch = lfo1Output * 12.0; // ±12 semitones at full depth
+
+    // Calculate LFO2 rate (tempo-synced or free-running)
+    let lfo2RateHz =
+      params.lfo2Rate.length > 1
+        ? params.lfo2Rate[sampleIndex]
+        : params.lfo2Rate[0];
+
+    // Apply tempo sync if enabled
+    if (params.lfo2TempoSync > 0) {
+      const divisionIndex = Math.round(params.lfo2SyncDivision);
+      const divisionName = TEMPO_DIVISION_NAMES[divisionIndex] || '1/4';
+      const multiplier = TEMPO_DIVISIONS[divisionName] || 1.0;
+
+      // Convert BPM to Hz: Hz = (BPM / 60) * multiplier
+      lfo2RateHz = (params.bpm / 60.0) * multiplier;
+    }
+
+    // Get LFO2 depth
+    let lfo2DepthNow =
+      params.lfo2Depth.length > 1
+        ? params.lfo2Depth[sampleIndex]
+        : params.lfo2Depth[0];
+
+    // Process LFO2 and get output value
+    const lfo2Output = voice.lfo2.process(
+      lfo2RateHz,
+      lfo2DepthNow,
+      params.lfo2Waveform,
+      params.lfo2FadeIn,
+      this.currentFrame + sampleIndex,
+      sr
+    );
+
+    // TEST: Route LFO2 to filter cutoff
+    // LFO2 output range: -depth to +depth (where depth is 0-1)
+    // Scale to filter cutoff range (will be applied later in filter section)
+    const lfo2ToFilterCutoff = lfo2Output;
+
     // Get FM parameters first
     let fmDepthNow =
       params.fmDepth.length > 1
@@ -1315,7 +1614,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       coarseNow +
       fineNow / 100.0 +
       pitchBendNow +
-      aftertouchMods.osc1Pitch * 12;
+      aftertouchMods.osc1Pitch * 12 +
+      lfo1ToPitch; // Add LFO1 modulation to pitch
     const baseFreq = this.midiToHz(baseSemi);
 
     // Apply FM modulation: modulate frequency with Osc2 output
@@ -1551,6 +1851,13 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       );
     }
 
+    // TEST: Apply LFO2 modulation to LPF cutoff
+    // LFO2 output range: -depth to +depth (where depth is 0-1)
+    // Scale to ±3 octaves maximum (exponential scaling for natural filter sweep)
+    // When depth=100%, lfo2Output ranges from -1 to +1, giving ±3 octaves
+    const lfo2Multiplier = Math.pow(2, lfo2ToFilterCutoff * 3); // ±3 octaves
+    lpfCutoffNow = Math.max(20, Math.min(20000, lpfCutoffNow * lfo2Multiplier));
+
     let lpfResonanceNow =
       params.filterResonance.length > 1
         ? params.filterResonance[sampleIndex]
@@ -1653,7 +1960,23 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       const msg = this.messageQueue.pop();
 
       if (msg.type === 'noteOn') {
-        this.voiceAllocator.noteOn(msg.midi, msg.velocity, this.currentFrame);
+        // Get LFO1 parameters for note trigger
+        const lfo1PhaseNorm = (parameters.lfo1Phase[0] || 0) / 360.0; // Convert degrees to 0-1
+        const lfo1Retrigger = (parameters.lfo1Retrigger[0] || 0) > 0;
+
+        // Get LFO2 parameters for note trigger
+        const lfo2PhaseNorm = (parameters.lfo2Phase[0] || 0) / 360.0; // Convert degrees to 0-1
+        const lfo2Retrigger = (parameters.lfo2Retrigger[0] || 0) > 0;
+
+        this.voiceAllocator.noteOn(
+          msg.midi,
+          msg.velocity,
+          this.currentFrame,
+          lfo1PhaseNorm,
+          lfo1Retrigger,
+          lfo2PhaseNorm,
+          lfo2Retrigger
+        );
       } else if (msg.type === 'noteOff') {
         this.voiceAllocator.noteOff(msg.midi);
       } else if (msg.type === 'allNotesOff') {
@@ -1721,6 +2044,23 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       aftertouchAmount3: parameters.aftertouchAmount3[0],
       aftertouchDest4: parameters.aftertouchDest4[0],
       aftertouchAmount4: parameters.aftertouchAmount4[0],
+      bpm: parameters.bpm[0],
+      lfo1Rate: parameters.lfo1Rate,
+      lfo1Depth: parameters.lfo1Depth,
+      lfo1Waveform: parameters.lfo1Waveform[0],
+      lfo1Phase: parameters.lfo1Phase[0],
+      lfo1TempoSync: parameters.lfo1TempoSync[0],
+      lfo1SyncDivision: parameters.lfo1SyncDivision[0],
+      lfo1Retrigger: parameters.lfo1Retrigger[0],
+      lfo1FadeIn: parameters.lfo1FadeIn[0],
+      lfo2Rate: parameters.lfo2Rate,
+      lfo2Depth: parameters.lfo2Depth,
+      lfo2Waveform: parameters.lfo2Waveform[0],
+      lfo2Phase: parameters.lfo2Phase[0],
+      lfo2TempoSync: parameters.lfo2TempoSync[0],
+      lfo2SyncDivision: parameters.lfo2SyncDivision[0],
+      lfo2Retrigger: parameters.lfo2Retrigger[0],
+      lfo2FadeIn: parameters.lfo2FadeIn[0],
     };
 
     // Clear output buffers

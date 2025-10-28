@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-8-voice polyphonic PWM (Pulse Width Modulation) synthesizer with 11 built-in effects running in the browser using Web Audio API's AudioWorklet technology. This is a pure JavaScript implementation using ES modules that can be run directly in development or built into a single-file monolithic distribution for production.
+8-voice polyphonic PWM (Pulse Width Modulation) synthesizer with 11 built-in effects and BPM-based tempo system running in the browser using Web Audio API's AudioWorklet technology. This is a pure JavaScript implementation using ES modules that can be run directly in development or built into a single-file monolithic distribution for production.
 
 ## Development Commands
 
@@ -51,9 +51,9 @@ This is required for Web Audio API's AudioWorklet and Web MIDI API access.
 The synth follows a four-layer architecture:
 
 1. **UI Layer** ([main.js](main.js) + [ui/](ui/))
-   - [main.js](main.js) - Entry point, initializes Synth and MIDIInput, wires UI
+   - [main.js](main.js) - Entry point, initializes Synth, MIDIInput, TempoManager, wires UI
    - [ui/controls.js](ui/controls.js) - Main UI orchestrator with voice count display
-   - [ui/parameter-controls.js](ui/parameter-controls.js) - Maps HTML sliders to synth parameters
+   - [ui/parameter-controls.js](ui/parameter-controls.js) - Maps HTML sliders to synth parameters (including BPM)
    - [ui/keyboard.js](ui/keyboard.js) - On-screen keyboard implementation with cleanup
    - [ui/midi-controls.js](ui/midi-controls.js) - MIDI device selection UI
 
@@ -68,17 +68,19 @@ The synth follows a four-layer architecture:
 
 3. **DSP Core** ([worklet/synth-processor.js](worklet/synth-processor.js))
    - Runs in AudioWorklet thread (separate from main thread)
-   - **Modular architecture** with 6 classes (refactored 2025-10-27):
+   - **Modular architecture** with 7 classes (updated 2025-10-28):
      - `IIRFilter` - 24dB/18dB biquad filter with coefficient caching
      - `Envelope` - ADSR envelope generator with exponential curves
+     - `LFO` - Low frequency oscillator with 6 waveforms and tempo sync
      - `Oscillator` - PWM + PolyBLEP anti-aliasing + multi-waveform generator
-     - `Voice` - Voice state container (oscillators, envelopes, filters)
+     - `Voice` - Voice state container (oscillators, envelopes, filters, LFOs)
      - `VoiceAllocator` - Polyphonic voice management with intelligent stealing
      - `MessageQueue` - Thread-safe message queue for voice events
    - Message queue for thread-safe voice allocation (prevents race conditions)
    - PWM oscillator with PolyBLEP anti-aliasing for bandlimited synthesis
    - Per-voice 24dB IIR resonant lowpass filter (cascaded biquads)
    - ADSR envelope generator per voice
+   - Per-voice LFO1 with 6 waveforms and tempo sync (test: routed to Osc1 pitch)
    - Stereo panning with LFO and equal-power law
    - Sub-oscillator (one octave down)
    - Real-time voice count reporting to UI (every 100ms)
@@ -127,6 +129,31 @@ Polyphonic voice allocation with intelligent voice stealing (default: 8 voices):
 
 **Auto-Pan**: Stereo positioning with LFO modulation. Uses equal-power panning law to maintain consistent perceived loudness.
 
+### LFO1 (Low Frequency Oscillator)
+
+Per-voice modulation source with flexible control (added 2025-10-28):
+
+**Waveforms**: Sine, Triangle, Square, Saw Up, Saw Down, Sample & Hold (Random)
+
+**Parameters**:
+
+- **Rate**: 0.01-50 Hz (free-running mode)
+- **Depth**: 0-100% output level
+- **Phase**: 0-360° initial offset (for key retrigger mode)
+- **Tempo Sync**: On/Off toggle for BPM-based timing
+- **Sync Division**: 13 divisions (1/1, 1/2, 1/4, 1/8, 1/16, 1/32, with dotted and triplet variants)
+- **Retrigger**: Free-running or reset phase on note-on
+- **Fade-in**: 0-5s exponential fade-in envelope
+
+**Operation**:
+
+- **Per-voice**: Each voice has its own LFO instance (polyphonic)
+- **Tempo sync**: When enabled, rate is locked to BPM with musical divisions
+- **Key retrigger**: When enabled, LFO phase resets on each note-on
+- **Fade-in**: Optional exponential envelope applied to LFO depth
+
+**Current State**: LFO1 is fully implemented and running per-voice. **TEST ROUTING**: Currently hardwired to Oscillator 1 pitch for testing purposes (±12 semitones at 100% depth = vibrato effect). Future work will implement a flexible modulation matrix to route LFO1 output to multiple destinations like filter cutoff, PWM depth, amplitude, etc.
+
 ### Aftertouch Modulation
 
 4-slot modulation matrix where channel aftertouch can modulate:
@@ -161,6 +188,35 @@ Each slot has: destination (0-4) and amount (-1 to +1).
 - Dynamic effect registration via [fx/effect-registry.js](fx/effect-registry.js)
 - Scaffolding tool: `npm run create-effect`
 
+### Tempo System
+
+The synthesizer includes a flexible BPM-based tempo system for tempo-synced modulation and effects.
+
+**BPM Management**:
+
+- **Range**: 20-300 BPM (default: 120)
+- **TempoManager** ([utils/tempo-manager.js](utils/tempo-manager.js)): Centralized tempo state management
+- **UI**: BPM slider in Tempo section (top of controls)
+- **Integration**: BPM value stored as synth parameter, accessible in AudioWorklet
+- **Future**: MIDI Clock sync support (architecture ready, not yet implemented)
+
+**Tempo Conversions** ([utils/music.js](utils/music.js)):
+
+- `bpmToHz(bpm, division)` - Convert BPM to frequency (Hz) for LFO/effect sync
+- **Divisions**: Standard note divisions with dotted and triplet variants
+  - Basic: 1/1, 1/2, 1/4, 1/8, 1/16, 1/32
+  - Dotted: 1/2D, 1/4D, 1/8D, 1/16D (1.5× duration)
+  - Triplet: 1/2T, 1/4T, 1/8T, 1/16T (0.666× duration)
+- **Example**: `bpmToHz(120, '1/4')` returns 2 Hz (2 beats per second)
+- **Usage**: Intended for future LFO tempo sync and delay time sync features
+
+**Future Use Cases**:
+
+- LFO tempo sync (e.g., 1/4 note vibrato locked to BPM)
+- Delay time sync (e.g., 1/8 note delay timing)
+- Modulation matrix tempo-based sources
+- Arpeggiator clock
+
 ## Key Files
 
 ### Core Files
@@ -182,7 +238,8 @@ Each slot has: destination (0-4) and amount (-1 to +1).
 
 ### Utilities and Build
 
-- [utils/music.js](utils/music.js) - Music theory utilities (MIDI to frequency, note names)
+- [utils/music.js](utils/music.js) - Music theory utilities (MIDI to frequency, note names, BPM conversions)
+- [utils/tempo-manager.js](utils/tempo-manager.js) - Centralized BPM/tempo state management
 - [utils/logger.js](utils/logger.js) - Logging utility with level control
 - [utils/parameter-registry.js](utils/parameter-registry.js) - Centralized parameter definitions (see below)
 - [build.js](build.js) - Production build script with worklet validation and parameter registry inlining
@@ -190,10 +247,11 @@ Each slot has: destination (0-4) and amount (-1 to +1).
 
 ### Testing
 
-- [tests/](tests/) - Test suite (81 tests, 100% pass rate)
+- [tests/](tests/) - Test suite (~175 tests, 100% pass rate)
   - [tests/dsp-math.test.js](tests/dsp-math.test.js) - DSP mathematical functions
   - [tests/logger.test.js](tests/logger.test.js) - Logger tests
-  - [tests/music.test.js](tests/music.test.js) - Music utilities tests
+  - [tests/music.test.js](tests/music.test.js) - Music utilities and BPM conversion tests (94 tests)
+  - [tests/tempo-manager.test.js](tests/tempo-manager.test.js) - TempoManager unit tests (29 tests)
   - [tests/parameter-manager.test.js](tests/parameter-manager.test.js) - Parameter manager tests
   - [tests/TEST_COVERAGE.md](tests/TEST_COVERAGE.md) - Coverage report
 
@@ -247,6 +305,7 @@ Key parameters:
 - Oscillator tuning: ±48 semitones coarse, ±50 cents fine
 - Pulse width: 1-99% (clamped to 5-95% internally)
 - PWM LFO: 0.1-10 Hz rate, 0-100% depth
+- LFO1: 0.01-50 Hz rate, 0-100% depth, 0-360° phase, 0-5s fade-in
 - Filter: 20Hz-20kHz cutoff, 0-95% resonance
 - Envelope: 0-6s attack/decay/release (both amp and filter envelopes)
 - Pitch bend: ±0-24 semitones configurable range

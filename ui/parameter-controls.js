@@ -1,7 +1,7 @@
 // ui/parameter-controls.js - synth parameter sliders and controls
 import { getParameter } from '../utils/parameter-registry.js';
 
-export function initParameterControls(synth) {
+export function initParameterControls(synth, tempoManager = null) {
   const byId = (id) => {
     const element = document.getElementById(id);
     if (!element) {
@@ -68,6 +68,28 @@ export function initParameterControls(synth) {
       e.target.blur(); // Immediately blur if somehow focused
     });
   };
+
+  // BPM control with TempoManager integration
+  if (tempoManager) {
+    const bpmEl = byId('bpm');
+    const bpmVal = byId('bpmVal');
+    if (bpmEl && bpmVal) {
+      const paramDef = getParameter('bpm');
+      const fmt = paramDef?.displayFormat || ((v) => Math.round(v));
+
+      const applyBPM = (v) => {
+        const bpmValue = +v;
+        bpmVal.textContent = fmt(bpmValue);
+        tempoManager.setBPM(bpmValue, 'manual');
+      };
+      applyBPM(bpmEl.value);
+      bpmEl.addEventListener('input', (e) => applyBPM(e.target.value));
+
+      // Prevent slider from being focusable
+      bpmEl.setAttribute('tabindex', '-1');
+      bpmEl.addEventListener('focus', (e) => e.target.blur());
+    }
+  }
 
   bind('coarse', 'oscillatorCoarseTune');
   bind('fine', 'oscillatorFineTune');
@@ -184,4 +206,92 @@ export function initParameterControls(synth) {
   bind('atAmount3', 'aftertouchAmount3');
   bind('atDest4', 'aftertouchDest4');
   bind('atAmount4', 'aftertouchAmount4');
+
+  // LFO1 parameters
+  bind('lfo1Rate', 'lfo1Rate');
+  bind('lfo1Depth', 'lfo1Depth');
+
+  // LFO1 waveform selector (uses 'change' event like osc2Waveform)
+  const lfo1WaveformEl = byId('lfo1Waveform');
+  const lfo1WaveformVal = byId('lfo1WaveformVal');
+  if (lfo1WaveformEl && lfo1WaveformVal) {
+    const paramDef = getParameter('lfo1Waveform');
+    const fmt = paramDef?.displayFormat || ((v) => 'Sine');
+    const applyLFO1Waveform = (v) => {
+      const idx = Math.round(+v);
+      lfo1WaveformVal.textContent = fmt(idx);
+      synth.setParam('lfo1Waveform', idx);
+    };
+    applyLFO1Waveform(lfo1WaveformEl.value);
+    lfo1WaveformEl.addEventListener('change', (e) =>
+      applyLFO1Waveform(e.target.value)
+    );
+  }
+
+  bind('lfo1Phase', 'lfo1Phase');
+  bind('lfo1TempoSync', 'lfo1TempoSync');
+
+  // LFO1 sync division selector (uses 'change' event)
+  const lfo1SyncDivisionEl = byId('lfo1SyncDivision');
+  const lfo1SyncDivisionVal = byId('lfo1SyncDivisionVal');
+  if (lfo1SyncDivisionEl && lfo1SyncDivisionVal) {
+    const paramDef = getParameter('lfo1SyncDivision');
+    const fmt = paramDef?.displayFormat || ((v) => '1/4');
+    const applyLFO1SyncDivision = (v) => {
+      const idx = Math.round(+v);
+      lfo1SyncDivisionVal.textContent = fmt(idx);
+      synth.setParam('lfo1SyncDivision', idx);
+    };
+    applyLFO1SyncDivision(lfo1SyncDivisionEl.value);
+    lfo1SyncDivisionEl.addEventListener('change', (e) =>
+      applyLFO1SyncDivision(e.target.value)
+    );
+  }
+
+  bind('lfo1Retrigger', 'lfo1Retrigger');
+  bind('lfo1FadeIn', 'lfo1FadeIn');
+
+  // LFO2 parameters
+  bind('lfo2Rate', 'lfo2Rate');
+  bind('lfo2Depth', 'lfo2Depth');
+
+  // LFO2 waveform selector (uses 'change' event like osc2Waveform)
+  const lfo2WaveformEl = byId('lfo2Waveform');
+  const lfo2WaveformVal = byId('lfo2WaveformVal');
+  if (lfo2WaveformEl && lfo2WaveformVal) {
+    const paramDef = getParameter('lfo2Waveform');
+    const fmt = paramDef?.displayFormat || ((v) => 'Sine');
+    const applyLFO2Waveform = (v) => {
+      const idx = Math.round(+v);
+      lfo2WaveformVal.textContent = fmt(idx);
+      synth.setParam('lfo2Waveform', idx);
+    };
+    applyLFO2Waveform(lfo2WaveformEl.value);
+    lfo2WaveformEl.addEventListener('change', (e) =>
+      applyLFO2Waveform(e.target.value)
+    );
+  }
+
+  bind('lfo2Phase', 'lfo2Phase');
+  bind('lfo2TempoSync', 'lfo2TempoSync');
+
+  // LFO2 sync division selector (uses 'change' event)
+  const lfo2SyncDivisionEl = byId('lfo2SyncDivision');
+  const lfo2SyncDivisionVal = byId('lfo2SyncDivisionVal');
+  if (lfo2SyncDivisionEl && lfo2SyncDivisionVal) {
+    const paramDef = getParameter('lfo2SyncDivision');
+    const fmt = paramDef?.displayFormat || ((v) => '1/4');
+    const applyLFO2SyncDivision = (v) => {
+      const idx = Math.round(+v);
+      lfo2SyncDivisionVal.textContent = fmt(idx);
+      synth.setParam('lfo2SyncDivision', idx);
+    };
+    applyLFO2SyncDivision(lfo2SyncDivisionEl.value);
+    lfo2SyncDivisionEl.addEventListener('change', (e) =>
+      applyLFO2SyncDivision(e.target.value)
+    );
+  }
+
+  bind('lfo2Retrigger', 'lfo2Retrigger');
+  bind('lfo2FadeIn', 'lfo2FadeIn');
 }
