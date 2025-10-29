@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-8-voice polyphonic PWM (Pulse Width Modulation) synthesizer with 11 built-in effects and BPM-based tempo system running in the browser using Web Audio API's AudioWorklet technology. This is a pure JavaScript implementation using ES modules that can be run directly in development or built into a single-file monolithic distribution for production.
+8-voice polyphonic PWM (Pulse Width Modulation) synthesizer with **12-slot Modulation Matrix**, 11 built-in effects, and BPM-based tempo system running in the browser using Web Audio API's AudioWorklet technology. This is a pure JavaScript implementation using ES modules that can be run directly in development or built into a single-file monolithic distribution for production.
+
+**Version 2.0** introduces a comprehensive modulation matrix with 9 sources and 25 destinations, enabling complex sound design with LFO self-modulation, cross-modulation, and extensive routing capabilities.
 
 ## Development Commands
 
@@ -152,18 +154,92 @@ Per-voice modulation source with flexible control (added 2025-10-28):
 - **Key retrigger**: When enabled, LFO phase resets on each note-on
 - **Fade-in**: Optional exponential envelope applied to LFO depth
 
-**Current State**: LFO1 is fully implemented and running per-voice. **TEST ROUTING**: Currently hardwired to Oscillator 1 pitch for testing purposes (±12 semitones at 100% depth = vibrato effect). Future work will implement a flexible modulation matrix to route LFO1 output to multiple destinations like filter cutoff, PWM depth, amplitude, etc.
+**Current State**: LFO1 and LFO2 are fully implemented, running per-voice, and available as modulation sources in the Modulation Matrix.
 
-### Aftertouch Modulation
+### Modulation Matrix (v2.0)
 
-4-slot modulation matrix where channel aftertouch can modulate:
+Comprehensive 12-slot modulation routing system allowing any source to modulate any destination with bipolar control.
 
-1. PWM Depth
-2. Pan Depth
-3. Oscillator Volume
-4. Master Volume
+**Architecture**:
 
-Each slot has: destination (0-4) and amount (-1 to +1).
+- **12 Slots**: Each slot is independent, allowing complex layered modulation
+- **9 Sources**: Note Number, Velocity, Pitch Bend, Mod Wheel, Aftertouch, LFO1, LFO2, Amp Env, Filter Env
+- **25 Destinations**: Full control over oscillators, filters, LFOs, pan, and master volume
+- **Bipolar Amount**: -100% to +100% per slot with double-click reset to 0%
+
+**Sources** (normalized 0-1 or -1 to +1):
+
+1. **None** (0) - Disabled slot
+2. **Note Number** (1) - MIDI note 0-127, normalized to 0-1
+3. **Velocity** (2) - Note velocity 0-1
+4. **Pitch Bend** (3) - ±12 semitones, normalized to -1 to +1
+5. **Mod Wheel** (4) - MIDI CC#1, 0-1
+6. **Aftertouch** (5) - Channel pressure, 0-1
+7. **LFO1** (6) - LFO1 output (from previous frame)
+8. **LFO2** (7) - LFO2 output (from previous frame)
+9. **Amp Env** (8) - Amplitude envelope level, 0-1
+10. **Filter Env** (9) - Filter envelope level, 0-1
+
+**Destinations**:
+
+1. **None** (0) - Disabled slot
+2. **OSC1 Pitch** (1) - ±12 semitones at 100% amount
+3. **OSC1 PWM** (2) - Pulse width offset
+4. **OSC1 PWM Depth** (3) - PWM LFO depth
+5. **OSC1 PWM Rate** (4) - PWM LFO rate
+6. **OSC1 Volume** (5) - Oscillator 1 amplitude
+7. **Sub1 Volume** (6) - Sub-oscillator 1 amplitude
+8. **OSC1 FM** (7) - FM depth from OSC2
+9. **OSC2 Pitch** (8) - Oscillator 2 pitch offset
+10. **OSC2 Volume** (9) - Oscillator 2 amplitude
+11. **Sub2 Volume** (10) - Sub-oscillator 2 amplitude
+12. **Ring Volume** (11) - Ring modulator mix
+13. **Noise Volume** (12) - Noise generator mix
+14. **F1 Cutoff** (13) - Lowpass filter cutoff (±5000 Hz at 100%)
+15. **F1 Resonance** (14) - Lowpass filter resonance
+16. **F2 Cutoff** (15) - Highpass filter cutoff (±5000 Hz at 100%)
+17. **F2 Resonance** (16) - Highpass filter resonance
+18. **Filter Saturation** (17) - Filter drive (not yet implemented)
+19. **LFO1 Rate** (18) - LFO1 frequency (±25 Hz at 100%)
+20. **LFO1 Amount** (19) - LFO1 depth
+21. **LFO2 Rate** (20) - LFO2 frequency (±25 Hz at 100%)
+22. **LFO2 Amount** (21) - LFO2 depth
+23. **Pan Position** (22) - Stereo pan position
+24. **Pan Depth** (23) - Auto-pan LFO depth
+25. **Pan Rate** (24) - Auto-pan LFO rate
+26. **Master Volume** (25) - Final output level
+
+**Technical Implementation**:
+
+- **Dual-pass processing** ([worklet/synth-processor.js](worklet/synth-processor.js)):
+  1. **First pass** (lines 1447-1518): Process LFO destinations (18-21) before calculating LFO outputs
+  2. **LFO calculation** (lines 1520-1603): Calculate LFO1 and LFO2 with applied modulation
+  3. **Second pass** (lines 1605-1856): Process remaining destinations with calculated LFO outputs
+
+- **One-sample delay feedback loop**: LFO sources use previous frame's output (`voice.lfo1Output`, `voice.lfo2Output`) to enable self-modulation and cross-modulation without circular dependencies
+
+- **Per-voice processing**: All modulation is calculated per-voice for true polyphonic behavior
+
+- **Dynamic UI generation** ([ui/matrix-ui.js](ui/matrix-ui.js)): 12 slots generated dynamically from `MATRIX_SOURCES` and `MATRIX_DESTINATIONS` arrays
+
+- **Parameter binding** ([ui/parameter-controls.js](ui/parameter-controls.js)): 36 parameters (12 slots × 3 params: source, destination, amount)
+
+**Example Routings**:
+
+- **Velocity → OSC1 Volume**: Velocity-sensitive amplitude (standard)
+- **LFO1 → OSC1 Pitch**: Classic vibrato effect
+- **LFO2 → F1 Cutoff**: Sweeping filter effect
+- **LFO1 → LFO1 Rate**: FM-style self-modulation (creates complex waveforms)
+- **LFO2 → LFO1 Depth**: Cross-modulation between LFOs
+- **Amp Env → Pan Position**: Auto-pan following amplitude envelope
+- **Note Number → LFO1 Rate**: Higher notes = faster LFO
+- **Mod Wheel → F1 Cutoff**: Manual filter control via MIDI
+
+**Files**:
+
+- [utils/parameter-registry.js](utils/parameter-registry.js) - Source/destination definitions (lines 43-64)
+- [ui/matrix-ui.js](ui/matrix-ui.js) - Dynamic UI generation
+- [worklet/synth-processor.js](worklet/synth-processor.js) - Dual-pass matrix processing (lines 1436-1856)
 
 ### Effects System
 

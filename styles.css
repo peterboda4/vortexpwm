@@ -653,3 +653,72 @@ select {
     flex-wrap: wrap;
   }
 }
+
+/* ========================================
+   Modulation Matrix Styles
+   ======================================== */
+
+.matrix-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.matrix-slot {
+  display: grid;
+  grid-template-columns: 24px 140px 20px 160px 1fr 60px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  background: #13161b;
+  border-radius: 6px;
+  border: 1px solid #262a31;
+}
+
+.matrix-slot-number {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.matrix-source,
+.matrix-dest {
+  font-size: 13px;
+  padding: 4px 6px;
+}
+
+.matrix-arrow {
+  color: var(--brand);
+  font-size: 14px;
+  text-align: center;
+}
+
+.matrix-amount {
+  width: 100%;
+  cursor: ew-resize;
+}
+
+.matrix-amount-value {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  user-select: none;
+}
+
+.matrix-amount-value:hover {
+  color: var(--ink);
+}
+
+.matrix-amount-value:active {
+  color: var(--accent);
+}
+
+@media (max-width: 1024px) {
+  .matrix-slot {
+    grid-template-columns: 24px 120px 20px 140px 1fr 50px;
+    gap: 6px;
+  }
+}

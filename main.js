@@ -4,6 +4,7 @@ import { MIDIInput } from './midi/midi-input.js';
 import { FXControls } from './ui/fx-controls.js';
 import { destroyKeyboard } from './ui/keyboard.js';
 import { TempoManager } from './utils/tempo-manager.js';
+import { initializeMatrixUI } from './ui/matrix-ui.js';
 
 // Helper to show user-visible error messages
 function showError(title, message) {
@@ -84,7 +85,11 @@ async function initApp() {
       console.log('MIDI not available - using keyboard/mouse only');
     }
 
-    // Wire UI
+    // Initialize modulation matrix UI BEFORE parameter controls
+    initializeMatrixUI();
+    console.log('Modulation matrix UI initialized');
+
+    // Wire UI (this calls initParameterControls which needs matrix elements)
     initUI({
       synth,
       state,

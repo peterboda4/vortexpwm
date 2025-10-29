@@ -5,10 +5,20 @@ const STORAGE_KEY = 'vortexpwm.ccMappings';
 
 const CC_TARGETS = [
   {
+    id: 'modWheel',
+    label: 'Mod Wheel',
+    group: 'MIDI',
+    defaultCC: 1,
+    type: 'synthParam',
+    param: 'modWheel',
+    min: 0,
+    max: 1,
+  },
+  {
     id: 'pwmDepth',
     label: 'PWM Depth',
     group: 'Oscillator',
-    defaultCC: 1,
+    defaultCC: null, // No default CC, was conflicting with Mod Wheel
     type: 'synthParam',
     param: 'pulseWidthModulationDepth',
     min: 0,

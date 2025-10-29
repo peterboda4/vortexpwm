@@ -39,11 +39,17 @@ export function initParameterControls(synth, tempoManager = null) {
   // If fmt is not provided, use displayFormat from parameter registry
   const bind = (id, param, fmt) => {
     const el = byId(id);
-    const val = byId(id + 'Val');
-    if (!el || !val) return;
+    if (!el) return;
+
+    // Check if this is a select element (source/dest dropdowns don't need Val spans)
+    const isSelect = el.tagName === 'SELECT';
+    const val = isSelect ? null : byId(id + 'Val');
+
+    // For non-select elements, we need the Val span
+    if (!isSelect && !val) return;
 
     // Get format function from parameter registry if not provided
-    if (!fmt) {
+    if (!fmt && !isSelect) {
       const paramDef = getParameter(param);
       fmt = paramDef?.displayFormat || ((v) => v.toString());
     }
@@ -55,13 +61,19 @@ export function initParameterControls(synth, tempoManager = null) {
 
     const apply = (v) => {
       const numValue = +v; // Convert to number first
-      val.textContent = fmt(numValue);
+      if (val) {
+        val.textContent = fmt(numValue);
+      }
       throttledSetParam(numValue);
     };
     apply(el.value);
-    el.addEventListener('input', (e) => {
+
+    // Use 'change' event for selects, 'input' for range sliders
+    const eventType = isSelect ? 'change' : 'input';
+    el.addEventListener(eventType, (e) => {
       apply(e.target.value);
     });
+
     // Prevent sliders from being focusable (keyboard is for synth notes only)
     el.setAttribute('tabindex', '-1');
     el.addEventListener('focus', (e) => {
@@ -197,15 +209,12 @@ export function initParameterControls(synth, tempoManager = null) {
   bindExpFilter('hpfCutoff', 'hpfCutoff', (v) => Math.round(v));
   bind('hpfResonance', 'hpfResonance');
 
-  // Aftertouch modulation slots (use parameter registry for formatting)
-  bind('atDest1', 'aftertouchDest1');
-  bind('atAmount1', 'aftertouchAmount1');
-  bind('atDest2', 'aftertouchDest2');
-  bind('atAmount2', 'aftertouchAmount2');
-  bind('atDest3', 'aftertouchDest3');
-  bind('atAmount3', 'aftertouchAmount3');
-  bind('atDest4', 'aftertouchDest4');
-  bind('atAmount4', 'aftertouchAmount4');
+  // Modulation Matrix (12 slots)
+  for (let i = 1; i <= 12; i++) {
+    bind(`matrixSource${i}`, `matrixSource${i}`);
+    bind(`matrixDest${i}`, `matrixDest${i}`);
+    bind(`matrixAmount${i}`, `matrixAmount${i}`);
+  }
 
   // LFO1 parameters
   bind('lfo1Rate', 'lfo1Rate');
