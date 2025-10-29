@@ -15,6 +15,72 @@
  * - displayScale: 'linear' or 'exponential' for UI sliders (optional)
  */
 
+/**
+ * Modulation matrix source names
+ */
+export const MATRIX_SOURCES = [
+  'None',
+  'Note Number',
+  'Velocity',
+  'Pitch Bend',
+  'Mod Wheel',
+  'Aftertouch',
+  'LFO1',
+  'LFO2',
+  'Amp Env',
+  'Filter Env',
+];
+
+/**
+ * Modulation matrix destination names
+ */
+export const MATRIX_DESTINATIONS = [
+  'None',
+  'OSC1 Pitch',
+  'OSC1 PWM',
+  'OSC1 PWM Depth',
+  'OSC1 PWM Rate',
+  'OSC1 Volume',
+  'Sub1 Volume',
+  'OSC1 FM',
+  'OSC2 Pitch',
+  'OSC2 Volume',
+  'Sub2 Volume',
+  'Ring Volume',
+  'Noise Volume',
+  'F1 Cutoff',
+  'F1 Resonance',
+  'F2 Cutoff',
+  'F2 Resonance',
+  'Filter Saturation',
+  'LFO1 Rate',
+  'LFO1 Amount',
+  'LFO2 Rate',
+  'LFO2 Amount',
+  'Pan Position',
+  'Pan Depth',
+  'Pan Rate',
+  'Master Volume',
+];
+
+/**
+ * Get matrix source name by index
+ * @param {number} index - Source index (0-9)
+ * @returns {string} Source name
+ */
+export function getMatrixSourceName(index) {
+  return MATRIX_SOURCES[Math.round(index)] || 'None';
+}
+
+/**
+ * Get matrix destination name by index
+ * @param {number} index - Destination index (0-25)
+ * @returns {string} Destination name
+ */
+export function getMatrixDestinationName(index) {
+  return MATRIX_DESTINATIONS[Math.round(index)] || 'None';
+}
+
 export const SYNTH_PARAMETERS = [
   // === OSCILLATOR 1 ===
   {
@@ -472,6 +538,15 @@ export const SYNTH_PARAMETERS = [
     unit: 'semitones',
     displayFormat: (v) => Math.round(v),
   },
+  {
+    name: 'modWheel',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 1,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => Math.round(v * 100) + '%',
+  },
 
   // === FILTER (LOWPASS) ===
   {
@@ -571,7 +646,8 @@ export const SYNTH_PARAMETERS = [
     displayFormat: (v) => Math.round(v * 100),
   },
 
-  // === AFTERTOUCH MODULATION ===
+  // === LEGACY AFTERTOUCH (DEPRECATED - kept for backward compatibility) ===
+  // TODO: Remove after worklet migration to matrix system
   {
     name: 'aftertouchDest1',
     defaultValue: 0,
@@ -579,29 +655,7 @@ export const SYNTH_PARAMETERS = [
     maxValue: 17,
     automationRate: 'k-rate',
     unit: '',
-    displayFormat: (v) => {
-      const destinations = [
-        'None',
-        'O1Pitch',
-        'O1Vol',
-        'Sub1Vol',
-        'O1PW',
-        'PWMRate',
-        'FMDepth',
-        'O2Pitch',
-        'O2Vol',
-        'Sub2Vol',
-        'RingVol',
-        'NoiseMix',
-        'LPCut',
-        'LPRes',
-        'HPCut',
-        'HPRes',
-        'PanDepth',
-        'PanRate',
-      ];
-      return destinations[Math.round(v)] || 'None';
-    },
+    displayFormat: (v) => 'None',
   },
   {
     name: 'aftertouchAmount1',
@@ -610,7 +664,7 @@ export const SYNTH_PARAMETERS = [
     maxValue: 1.0,
     automationRate: 'k-rate',
     unit: '',
-    displayFormat: (v) => v.toFixed(2),
+    displayFormat: (v) => '0.00',
   },
   {
     name: 'aftertouchDest2',
@@ -619,29 +673,7 @@ export const SYNTH_PARAMETERS = [
     maxValue: 17,
     automationRate: 'k-rate',
     unit: '',
-    displayFormat: (v) => {
-      const destinations = [
-        'None',
-        'O1Pitch',
-        'O1Vol',
-        'Sub1Vol',
-        'O1PW',
-        'PWMRate',
-        'FMDepth',
-        'O2Pitch',
-        'O2Vol',
-        'Sub2Vol',
-        'RingVol',
-        'NoiseMix',
-        'LPCut',
-        'LPRes',
-        'HPCut',
-        'HPRes',
-        'PanDepth',
-        'PanRate',
-      ];
-      return destinations[Math.round(v)] || 'None';
-    },
+    displayFormat: (v) => 'None',
   },
   {
     name: 'aftertouchAmount2',
@@ -650,7 +682,7 @@ export const SYNTH_PARAMETERS = [
     maxValue: 1.0,
     automationRate: 'k-rate',
     unit: '',
-    displayFormat: (v) => v.toFixed(2),
+    displayFormat: (v) => '0.00',
   },
   {
     name: 'aftertouchDest3',
@@ -659,29 +691,7 @@ export const SYNTH_PARAMETERS = [
     maxValue: 17,
     automationRate: 'k-rate',
     unit: '',
-    displayFormat: (v) => {
-      const destinations = [
-        'None',
-        'O1Pitch',
-        'O1Vol',
-        'Sub1Vol',
-        'O1PW',
-        'PWMRate',
-        'FMDepth',
-        'O2Pitch',
-        'O2Vol',
-        'Sub2Vol',
-        'RingVol',
-        'NoiseMix',
-        'LPCut',
-        'LPRes',
-        'HPCut',
-        'HPRes',
-        'PanDepth',
-        'PanRate',
-      ];
-      return destinations[Math.round(v)] || 'None';
-    },
+    displayFormat: (v) => 'None',
   },
   {
     name: 'aftertouchAmount3',
@@ -690,7 +700,7 @@ export const SYNTH_PARAMETERS = [
     maxValue: 1.0,
     automationRate: 'k-rate',
     unit: '',
-    displayFormat: (v) => v.toFixed(2),
+    displayFormat: (v) => '0.00',
   },
   {
     name: 'aftertouchDest4',
@@ -699,29 +709,7 @@ export const SYNTH_PARAMETERS = [
     maxValue: 17,
     automationRate: 'k-rate',
     unit: '',
-    displayFormat: (v) => {
-      const destinations = [
-        'None',
-        'O1Pitch',
-        'O1Vol',
-        'Sub1Vol',
-        'O1PW',
-        'PWMRate',
-        'FMDepth',
-        'O2Pitch',
-        'O2Vol',
-        'Sub2Vol',
-        'RingVol',
-        'NoiseMix',
-        'LPCut',
-        'LPRes',
-        'HPCut',
-        'HPRes',
-        'PanDepth',
-        'PanRate',
-      ];
-      return destinations[Math.round(v)] || 'None';
-    },
+    displayFormat: (v) => 'None',
   },
   {
     name: 'aftertouchAmount4',
@@ -730,7 +718,358 @@ export const SYNTH_PARAMETERS = [
     maxValue: 1.0,
     automationRate: 'k-rate',
     unit: '',
-    displayFormat: (v) => v.toFixed(2),
+    displayFormat: (v) => '0.00',
+  },
+
+  // === MODULATION MATRIX (12 slots) ===
+  // Each slot has: source (0-9), destination (0-25), amount (-100 to +100)
+
+  // Slot 1
+  {
+    name: 'matrixSource1',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 9,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixSourceName(v),
+  },
+  {
+    name: 'matrixDest1',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixDestinationName(v),
+  },
+  {
+    name: 'matrixAmount1',
+    defaultValue: 0,
+    minValue: -100,
+    maxValue: 100,
+    automationRate: 'k-rate',
+    unit: '%',
+    displayFormat: (v) => (v >= 0 ? '+' : '') + Math.round(v) + '%',
+  },
+
+  // Slot 2
+  {
+    name: 'matrixSource2',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 9,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixSourceName(v),
+  },
+  {
+    name: 'matrixDest2',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixDestinationName(v),
+  },
+  {
+    name: 'matrixAmount2',
+    defaultValue: 0,
+    minValue: -100,
+    maxValue: 100,
+    automationRate: 'k-rate',
+    unit: '%',
+    displayFormat: (v) => (v >= 0 ? '+' : '') + Math.round(v) + '%',
+  },
+
+  // Slot 3
+  {
+    name: 'matrixSource3',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 9,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixSourceName(v),
+  },
+  {
+    name: 'matrixDest3',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixDestinationName(v),
+  },
+  {
+    name: 'matrixAmount3',
+    defaultValue: 0,
+    minValue: -100,
+    maxValue: 100,
+    automationRate: 'k-rate',
+    unit: '%',
+    displayFormat: (v) => (v >= 0 ? '+' : '') + Math.round(v) + '%',
+  },
+
+  // Slot 4
+  {
+    name: 'matrixSource4',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 9,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixSourceName(v),
+  },
+  {
+    name: 'matrixDest4',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixDestinationName(v),
+  },
+  {
+    name: 'matrixAmount4',
+    defaultValue: 0,
+    minValue: -100,
+    maxValue: 100,
+    automationRate: 'k-rate',
+    unit: '%',
+    displayFormat: (v) => (v >= 0 ? '+' : '') + Math.round(v) + '%',
+  },
+
+  // Slot 5
+  {
+    name: 'matrixSource5',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 9,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixSourceName(v),
+  },
+  {
+    name: 'matrixDest5',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixDestinationName(v),
+  },
+  {
+    name: 'matrixAmount5',
+    defaultValue: 0,
+    minValue: -100,
+    maxValue: 100,
+    automationRate: 'k-rate',
+    unit: '%',
+    displayFormat: (v) => (v >= 0 ? '+' : '') + Math.round(v) + '%',
+  },
+
+  // Slot 6
+  {
+    name: 'matrixSource6',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 9,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixSourceName(v),
+  },
+  {
+    name: 'matrixDest6',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixDestinationName(v),
+  },
+  {
+    name: 'matrixAmount6',
+    defaultValue: 0,
+    minValue: -100,
+    maxValue: 100,
+    automationRate: 'k-rate',
+    unit: '%',
+    displayFormat: (v) => (v >= 0 ? '+' : '') + Math.round(v) + '%',
+  },
+
+  // Slot 7
+  {
+    name: 'matrixSource7',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 9,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixSourceName(v),
+  },
+  {
+    name: 'matrixDest7',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixDestinationName(v),
+  },
+  {
+    name: 'matrixAmount7',
+    defaultValue: 0,
+    minValue: -100,
+    maxValue: 100,
+    automationRate: 'k-rate',
+    unit: '%',
+    displayFormat: (v) => (v >= 0 ? '+' : '') + Math.round(v) + '%',
+  },
+
+  // Slot 8
+  {
+    name: 'matrixSource8',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 9,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixSourceName(v),
+  },
+  {
+    name: 'matrixDest8',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixDestinationName(v),
+  },
+  {
+    name: 'matrixAmount8',
+    defaultValue: 0,
+    minValue: -100,
+    maxValue: 100,
+    automationRate: 'k-rate',
+    unit: '%',
+    displayFormat: (v) => (v >= 0 ? '+' : '') + Math.round(v) + '%',
+  },
+
+  // Slot 9
+  {
+    name: 'matrixSource9',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 9,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixSourceName(v),
+  },
+  {
+    name: 'matrixDest9',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixDestinationName(v),
+  },
+  {
+    name: 'matrixAmount9',
+    defaultValue: 0,
+    minValue: -100,
+    maxValue: 100,
+    automationRate: 'k-rate',
+    unit: '%',
+    displayFormat: (v) => (v >= 0 ? '+' : '') + Math.round(v) + '%',
+  },
+
+  // Slot 10
+  {
+    name: 'matrixSource10',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 9,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixSourceName(v),
+  },
+  {
+    name: 'matrixDest10',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixDestinationName(v),
+  },
+  {
+    name: 'matrixAmount10',
+    defaultValue: 0,
+    minValue: -100,
+    maxValue: 100,
+    automationRate: 'k-rate',
+    unit: '%',
+    displayFormat: (v) => (v >= 0 ? '+' : '') + Math.round(v) + '%',
+  },
+
+  // Slot 11
+  {
+    name: 'matrixSource11',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 9,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixSourceName(v),
+  },
+  {
+    name: 'matrixDest11',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixDestinationName(v),
+  },
+  {
+    name: 'matrixAmount11',
+    defaultValue: 0,
+    minValue: -100,
+    maxValue: 100,
+    automationRate: 'k-rate',
+    unit: '%',
+    displayFormat: (v) => (v >= 0 ? '+' : '') + Math.round(v) + '%',
+  },
+
+  // Slot 12
+  {
+    name: 'matrixSource12',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 9,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixSourceName(v),
+  },
+  {
+    name: 'matrixDest12',
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    automationRate: 'k-rate',
+    unit: '',
+    displayFormat: (v) => getMatrixDestinationName(v),
+  },
+  {
+    name: 'matrixAmount12',
+    defaultValue: 0,
+    minValue: -100,
+    maxValue: 100,
+    automationRate: 'k-rate',
+    unit: '%',
+    displayFormat: (v) => (v >= 0 ? '+' : '') + Math.round(v) + '%',
   },
 
   // === TEMPO ===

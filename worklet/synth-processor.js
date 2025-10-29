@@ -588,6 +588,8 @@ class Voice {
     // LFOs
     this.lfo1 = new LFO();
     this.lfo2 = new LFO();
+    this.lfo1Output = 0.0; // Store previous frame LFO output for matrix modulation
+    this.lfo2Output = 0.0; // Store previous frame LFO output for matrix modulation
 
     // Filters
     this.lpf = new IIRFilter();
@@ -619,6 +621,8 @@ class Voice {
     // Reset LFOs
     this.lfo1.reset(0.0);
     this.lfo2.reset(0.0);
+    this.lfo1Output = 0.0;
+    this.lfo2Output = 0.0;
 
     // Reset filters
     this.lpf.reset();
@@ -1433,84 +1437,117 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     const sr = this.sampleRate;
     const twoPi = 2 * Math.PI;
 
-    // Apply aftertouch modulation to parameters
-    // Destinations: 0=none, 1=osc1Pitch, 2=osc1Volume, 3=sub1Volume, 4=osc1PW,
-    // 5=pwmRate, 6=fmDepth, 7=osc2Pitch, 8=osc2Volume, 9=sub2Volume, 10=ringVolume,
-    // 11=noiseMix, 12=lpCutoff, 13=lpResonance, 14=hpCutoff, 15=hpResonance, 16=panDepth, 17=panRate
-    const aftertouchMods = {
-      osc1Pitch: 0,
-      osc1Volume: 0,
-      sub1Volume: 0,
-      osc1PW: 0,
-      pwmRate: 0,
-      fmDepth: 0,
-      osc2Pitch: 0,
-      osc2Volume: 0,
-      sub2Volume: 0,
-      ringVolume: 0,
-      noiseMix: 0,
-      lpCutoff: 0,
-      lpResonance: 0,
-      hpCutoff: 0,
-      hpResonance: 0,
-      panDepth: 0,
-      panRate: 0,
+    // ===== MATRIX MODULATION - FIRST PASS (LFO destinations only) =====
+    // Process matrix modulation for LFO Rate/Depth before calculating LFO outputs
+    // This allows modulating LFO parameters (but LFO can't modulate itself in same frame)
+
+    const lfoMatrixMods = {
+      lfo1Rate: 0,
+      lfo1Depth: 0,
+      lfo2Rate: 0,
+      lfo2Depth: 0,
     };
 
-    for (let slot = 1; slot <= 4; slot++) {
-      const dest = params[`aftertouchDest${slot}`];
-      const amount = params[`aftertouchAmount${slot}`];
+    // Helper to process one matrix slot for LFO destinations only (18-21)
+    const processLFOMatrixSlot = (slotNum) => {
+      const sourceIdx = Math.round(params[`matrixSource${slotNum}`]);
+      const destIdx = Math.round(params[`matrixDest${slotNum}`]);
+      const amount = params[`matrixAmount${slotNum}`] / 100.0;
 
-      if (dest === 1) aftertouchMods.osc1Pitch += this.aftertouch * amount;
-      else if (dest === 2)
-        aftertouchMods.osc1Volume += this.aftertouch * amount;
-      else if (dest === 3)
-        aftertouchMods.sub1Volume += this.aftertouch * amount;
-      else if (dest === 4) aftertouchMods.osc1PW += this.aftertouch * amount;
-      else if (dest === 5) aftertouchMods.pwmRate += this.aftertouch * amount;
-      else if (dest === 6) aftertouchMods.fmDepth += this.aftertouch * amount;
-      else if (dest === 7) aftertouchMods.osc2Pitch += this.aftertouch * amount;
-      else if (dest === 8)
-        aftertouchMods.osc2Volume += this.aftertouch * amount;
-      else if (dest === 9)
-        aftertouchMods.sub2Volume += this.aftertouch * amount;
-      else if (dest === 10)
-        aftertouchMods.ringVolume += this.aftertouch * amount;
-      else if (dest === 11) aftertouchMods.noiseMix += this.aftertouch * amount;
-      else if (dest === 12) aftertouchMods.lpCutoff += this.aftertouch * amount;
-      else if (dest === 13)
-        aftertouchMods.lpResonance += this.aftertouch * amount;
-      else if (dest === 14) aftertouchMods.hpCutoff += this.aftertouch * amount;
-      else if (dest === 15)
-        aftertouchMods.hpResonance += this.aftertouch * amount;
-      else if (dest === 16) aftertouchMods.panDepth += this.aftertouch * amount;
-      else if (dest === 17) aftertouchMods.panRate += this.aftertouch * amount;
+      // Only process LFO destinations (18=LFO1 Rate, 19=LFO1 Depth, 20=LFO2 Rate, 21=LFO2 Depth)
+      if (sourceIdx === 0 || destIdx === 0 || destIdx < 18 || destIdx > 21)
+        return;
+
+      // Get source value (use previous frame's LFO output for LFO sources)
+      let sourceValue = 0;
+      switch (sourceIdx) {
+        case 1:
+          sourceValue = voice.midi / 127.0;
+          break; // Note Number
+        case 2:
+          sourceValue = voice.velocity;
+          break; // Velocity
+        case 3:
+          sourceValue =
+            (params.pitchBend.length > 1
+              ? params.pitchBend[sampleIndex]
+              : params.pitchBend[0]) / 12.0;
+          break; // Pitch Bend
+        case 4:
+          sourceValue = params.modWheel;
+          break; // Mod Wheel
+        case 5:
+          sourceValue = this.aftertouch;
+          break; // Aftertouch
+        case 6:
+          sourceValue = voice.lfo1Output;
+          break; // LFO1 (from previous frame)
+        case 7:
+          sourceValue = voice.lfo2Output;
+          break; // LFO2 (from previous frame)
+        case 8:
+          sourceValue = voice.ampEnv.level;
+          break; // Amp Env
+        case 9:
+          sourceValue = voice.filterEnv.level;
+          break; // Filter Env
+      }
+
+      const modValue = sourceValue * amount;
+
+      // Apply to LFO destinations
+      switch (destIdx) {
+        case 18:
+          lfoMatrixMods.lfo1Rate += modValue;
+          break;
+        case 19:
+          lfoMatrixMods.lfo1Depth += modValue;
+          break;
+        case 20:
+          lfoMatrixMods.lfo2Rate += modValue;
+          break;
+        case 21:
+          lfoMatrixMods.lfo2Depth += modValue;
+          break;
+      }
+    };
+
+    // Process all 12 matrix slots for LFO modulation
+    for (let slot = 1; slot <= 12; slot++) {
+      processLFOMatrixSlot(slot);
     }
 
-    // ===== LFO1 Processing =====
-    // Calculate LFO1 rate (tempo-synced or free-running)
+    // ===== CALCULATE LFO VALUES (with matrix modulation applied) =====
+    // Calculate LFO1 output (will be used as modulation source in main matrix pass)
     let lfo1RateHz =
       params.lfo1Rate.length > 1
         ? params.lfo1Rate[sampleIndex]
         : params.lfo1Rate[0];
 
-    // Apply tempo sync if enabled
     if (params.lfo1TempoSync > 0) {
       const divisionIndex = Math.round(params.lfo1SyncDivision);
       const divisionName = TEMPO_DIVISION_NAMES[divisionIndex] || '1/4';
       const multiplier = TEMPO_DIVISIONS[divisionName] || 1.0;
-
-      // Convert BPM to Hz: Hz = (BPM / 60) * multiplier
       lfo1RateHz = (params.bpm / 60.0) * multiplier;
     }
 
-    // Get LFO1 depth
+    // Apply matrix modulation to LFO1 Rate (scale modValue to reasonable Hz range)
+    lfo1RateHz = Math.max(
+      0.01,
+      Math.min(50.0, lfo1RateHz + lfoMatrixMods.lfo1Rate * 25)
+    );
+
     let lfo1DepthNow =
       params.lfo1Depth.length > 1
         ? params.lfo1Depth[sampleIndex]
         : params.lfo1Depth[0];
 
-    // Process LFO1 and get output value
+    // Apply matrix modulation to LFO1 Depth
+    lfo1DepthNow = Math.max(
+      0,
+      Math.min(1, lfo1DepthNow + lfoMatrixMods.lfo1Depth)
+    );
+
     const lfo1Output = voice.lfo1.process(
       lfo1RateHz,
       lfo1DepthNow,
@@ -1520,35 +1557,39 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       sr
     );
 
-    // TEST: Route LFO1 to Osc1 pitch (vibrato)
-    // LFO1 output range: -depth to +depth (where depth is 0-1)
-    // Scale to ±12 semitones maximum (one octave range)
-    // When depth=100%, lfo1Output ranges from -1 to +1, giving ±12 semitones
-    const lfo1ToPitch = lfo1Output * 12.0; // ±12 semitones at full depth
+    // Store LFO1 output for use in next frame's matrix modulation
+    voice.lfo1Output = lfo1Output;
 
-    // Calculate LFO2 rate (tempo-synced or free-running)
+    // Calculate LFO2 output (will be used as modulation source in main matrix pass)
     let lfo2RateHz =
       params.lfo2Rate.length > 1
         ? params.lfo2Rate[sampleIndex]
         : params.lfo2Rate[0];
 
-    // Apply tempo sync if enabled
     if (params.lfo2TempoSync > 0) {
       const divisionIndex = Math.round(params.lfo2SyncDivision);
       const divisionName = TEMPO_DIVISION_NAMES[divisionIndex] || '1/4';
       const multiplier = TEMPO_DIVISIONS[divisionName] || 1.0;
-
-      // Convert BPM to Hz: Hz = (BPM / 60) * multiplier
       lfo2RateHz = (params.bpm / 60.0) * multiplier;
     }
 
-    // Get LFO2 depth
+    // Apply matrix modulation to LFO2 Rate (scale modValue to reasonable Hz range)
+    lfo2RateHz = Math.max(
+      0.01,
+      Math.min(50.0, lfo2RateHz + lfoMatrixMods.lfo2Rate * 25)
+    );
+
     let lfo2DepthNow =
       params.lfo2Depth.length > 1
         ? params.lfo2Depth[sampleIndex]
         : params.lfo2Depth[0];
 
-    // Process LFO2 and get output value
+    // Apply matrix modulation to LFO2 Depth
+    lfo2DepthNow = Math.max(
+      0,
+      Math.min(1, lfo2DepthNow + lfoMatrixMods.lfo2Depth)
+    );
+
     const lfo2Output = voice.lfo2.process(
       lfo2RateHz,
       lfo2DepthNow,
@@ -1558,18 +1599,313 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       sr
     );
 
-    // TEST: Route LFO2 to filter cutoff
-    // LFO2 output range: -depth to +depth (where depth is 0-1)
-    // Scale to filter cutoff range (will be applied later in filter section)
-    const lfo2ToFilterCutoff = lfo2Output;
+    // Store LFO2 output for use in next frame's matrix modulation
+    voice.lfo2Output = lfo2Output;
+
+    // ===== MODULATION MATRIX =====
+    // 12 slots, each with: source (0-9), destination (0-25), amount (-100 to +100)
+    // Sources: 0=None, 1=Note Number, 2=Velocity, 3=Pitch Bend, 4=Mod Wheel,
+    //          5=Aftertouch, 6=LFO1, 7=LFO2, 8=Amp Env, 9=Filter Env
+    // Destinations: 0=None, 1=OSC1 Pitch, 2=OSC1 PWM, 3=OSC1 PWM Depth, 4=OSC1 PWM Rate,
+    //               5=OSC1 Volume, 6=Sub1 Volume, 7=OSC1 FM, 8=OSC2 Pitch, 9=OSC2 Volume,
+    //               10=Sub2 Volume, 11=Ring Volume, 12=Noise Volume, 13=F1 Cutoff,
+    //               14=F1 Resonance, 15=F2 Cutoff, 16=F2 Resonance, 17=Filter Saturation,
+    //               18=LFO1 Rate, 19=LFO1 Amount, 20=LFO2 Rate, 21=LFO2 Amount,
+    //               22=Pan Position, 23=Pan Depth, 24=Pan Rate, 25=Master Volume
+
+    // Initialize modulation accumulator for all destinations
+    const matrixMods = {
+      osc1Pitch: 0,
+      osc1PW: 0,
+      osc1PWMDepth: 0,
+      osc1PWMRate: 0,
+      osc1Volume: 0,
+      sub1Volume: 0,
+      osc1FM: 0,
+      osc2Pitch: 0,
+      osc2Volume: 0,
+      sub2Volume: 0,
+      ringVolume: 0,
+      noiseVolume: 0,
+      f1Cutoff: 0,
+      f1Resonance: 0,
+      f2Cutoff: 0,
+      f2Resonance: 0,
+      filterSaturation: 0,
+      lfo1Rate: 0,
+      lfo1Amount: 0,
+      lfo2Rate: 0,
+      lfo2Amount: 0,
+      panPosition: 0,
+      panDepth: 0,
+      panRate: 0,
+      masterVolume: 0,
+    };
+
+    // Process all 12 matrix slots
+    // Slot 1
+    let sourceIdx = Math.round(params.matrixSource1);
+    let destIdx = Math.round(params.matrixDest1);
+    let amount = params.matrixAmount1 / 100.0;
+
+    if (sourceIdx !== 0 && destIdx !== 0) {
+      // Get source value (normalized to -1..1 or 0..1 depending on source type)
+      let sourceValue = 0;
+      switch (sourceIdx) {
+        case 1: // Note Number (0-127 MIDI note, normalized to 0..1)
+          sourceValue = voice.midi / 127.0;
+          break;
+        case 2: // Velocity (0..1)
+          sourceValue = voice.velocity;
+          break;
+        case 3: // Pitch Bend (already in semitones, normalize to -1..1 assuming ±12 semitones)
+          sourceValue =
+            (params.pitchBend.length > 1
+              ? params.pitchBend[sampleIndex]
+              : params.pitchBend[0]) / 12.0;
+          break;
+        case 4: // Mod Wheel (0..1)
+          sourceValue = params.modWheel;
+          break;
+        case 5: // Aftertouch (0..1)
+          sourceValue = this.aftertouch;
+          break;
+        case 6: // LFO1
+          sourceValue = lfo1Output;
+          break;
+        case 7: // LFO2
+          sourceValue = lfo2Output;
+          break;
+        case 8: // Amp Env (0..1)
+          sourceValue = voice.ampEnv.level;
+          break;
+        case 9: // Filter Env (0..1)
+          sourceValue = voice.filterEnv.level;
+          break;
+      }
+
+      // Apply modulation to destination (amount is -1..1, sourceValue is typically 0..1 or -1..1)
+      const modValue = sourceValue * amount;
+
+      switch (destIdx) {
+        case 1: // OSC1 Pitch
+          matrixMods.osc1Pitch += modValue;
+          break;
+        case 2: // OSC1 PWM
+          matrixMods.osc1PW += modValue;
+          break;
+        case 3: // OSC1 PWM Depth
+          matrixMods.osc1PWMDepth += modValue;
+          break;
+        case 4: // OSC1 PWM Rate
+          matrixMods.osc1PWMRate += modValue;
+          break;
+        case 5: // OSC1 Volume
+          matrixMods.osc1Volume += modValue;
+          break;
+        case 6: // Sub1 Volume
+          matrixMods.sub1Volume += modValue;
+          break;
+        case 7: // OSC1 FM
+          matrixMods.osc1FM += modValue;
+          break;
+        case 8: // OSC2 Pitch
+          matrixMods.osc2Pitch += modValue;
+          break;
+        case 9: // OSC2 Volume
+          matrixMods.osc2Volume += modValue;
+          break;
+        case 10: // Sub2 Volume
+          matrixMods.sub2Volume += modValue;
+          break;
+        case 11: // Ring Volume
+          matrixMods.ringVolume += modValue;
+          break;
+        case 12: // Noise Volume
+          matrixMods.noiseVolume += modValue;
+          break;
+        case 13: // F1 Cutoff (LPF)
+          matrixMods.f1Cutoff += modValue;
+          break;
+        case 14: // F1 Resonance (LPF)
+          matrixMods.f1Resonance += modValue;
+          break;
+        case 15: // F2 Cutoff (HPF)
+          matrixMods.f2Cutoff += modValue;
+          break;
+        case 16: // F2 Resonance (HPF)
+          matrixMods.f2Resonance += modValue;
+          break;
+        case 17: // Filter Saturation (TODO: not yet implemented)
+          matrixMods.filterSaturation += modValue;
+          break;
+        case 18: // LFO1 Rate
+          matrixMods.lfo1Rate += modValue;
+          break;
+        case 19: // LFO1 Amount
+          matrixMods.lfo1Amount += modValue;
+          break;
+        case 20: // LFO2 Rate
+          matrixMods.lfo2Rate += modValue;
+          break;
+        case 21: // LFO2 Amount
+          matrixMods.lfo2Amount += modValue;
+          break;
+        case 22: // Pan Position
+          matrixMods.panPosition += modValue;
+          break;
+        case 23: // Pan Depth
+          matrixMods.panDepth += modValue;
+          break;
+        case 24: // Pan Rate
+          matrixMods.panRate += modValue;
+          break;
+        case 25: // Master Volume
+          matrixMods.masterVolume += modValue;
+          break;
+      }
+    }
+
+    // Process matrix helper function to avoid code duplication
+    const processMatrixSlot = (slotNum) => {
+      const sourceIdx = Math.round(params[`matrixSource${slotNum}`]);
+      const destIdx = Math.round(params[`matrixDest${slotNum}`]);
+      const amount = params[`matrixAmount${slotNum}`] / 100.0;
+
+      if (sourceIdx === 0 || destIdx === 0) return;
+
+      // Get source value
+      let sourceValue = 0;
+      switch (sourceIdx) {
+        case 1:
+          sourceValue = voice.midi / 127.0;
+          break;
+        case 2:
+          sourceValue = voice.velocity;
+          break;
+        case 3:
+          sourceValue =
+            (params.pitchBend.length > 1
+              ? params.pitchBend[sampleIndex]
+              : params.pitchBend[0]) / 12.0;
+          break;
+        case 4:
+          sourceValue = params.modWheel;
+          break; // Mod Wheel (0..1)
+        case 5:
+          sourceValue = this.aftertouch;
+          break;
+        case 6:
+          sourceValue = lfo1Output;
+          break; // LFO1 output (-depth..+depth)
+        case 7:
+          sourceValue = lfo2Output;
+          break; // LFO2 output (-depth..+depth)
+        case 8:
+          sourceValue = voice.ampEnv.level;
+          break;
+        case 9:
+          sourceValue = voice.filterEnv.level;
+          break;
+      }
+
+      const modValue = sourceValue * amount;
+
+      // Apply to destination
+      switch (destIdx) {
+        case 1:
+          matrixMods.osc1Pitch += modValue;
+          break;
+        case 2:
+          matrixMods.osc1PW += modValue;
+          break;
+        case 3:
+          matrixMods.osc1PWMDepth += modValue;
+          break;
+        case 4:
+          matrixMods.osc1PWMRate += modValue;
+          break;
+        case 5:
+          matrixMods.osc1Volume += modValue;
+          break;
+        case 6:
+          matrixMods.sub1Volume += modValue;
+          break;
+        case 7:
+          matrixMods.osc1FM += modValue;
+          break;
+        case 8:
+          matrixMods.osc2Pitch += modValue;
+          break;
+        case 9:
+          matrixMods.osc2Volume += modValue;
+          break;
+        case 10:
+          matrixMods.sub2Volume += modValue;
+          break;
+        case 11:
+          matrixMods.ringVolume += modValue;
+          break;
+        case 12:
+          matrixMods.noiseVolume += modValue;
+          break;
+        case 13:
+          matrixMods.f1Cutoff += modValue;
+          break;
+        case 14:
+          matrixMods.f1Resonance += modValue;
+          break;
+        case 15:
+          matrixMods.f2Cutoff += modValue;
+          break;
+        case 16:
+          matrixMods.f2Resonance += modValue;
+          break;
+        case 17:
+          matrixMods.filterSaturation += modValue;
+          break;
+        case 18:
+          matrixMods.lfo1Rate += modValue;
+          break;
+        case 19:
+          matrixMods.lfo1Amount += modValue;
+          break;
+        case 20:
+          matrixMods.lfo2Rate += modValue;
+          break;
+        case 21:
+          matrixMods.lfo2Amount += modValue;
+          break;
+        case 22:
+          matrixMods.panPosition += modValue;
+          break;
+        case 23:
+          matrixMods.panDepth += modValue;
+          break;
+        case 24:
+          matrixMods.panRate += modValue;
+          break;
+        case 25:
+          matrixMods.masterVolume += modValue;
+          break;
+      }
+    };
+
+    // Process remaining slots 2-12
+    for (let slot = 2; slot <= 12; slot++) {
+      processMatrixSlot(slot);
+    }
+
+    // LFO outputs were already calculated above (before matrix) for use as modulation sources
+    // Matrix modulation of LFO rate/depth is applied in the first pass before LFO calculation
 
     // Get FM parameters first
     let fmDepthNow =
       params.fmDepth.length > 1
         ? params.fmDepth[sampleIndex]
         : params.fmDepth[0];
-    // Apply aftertouch modulation to FM depth and clamp to [0, 1]
-    fmDepthNow = Math.max(0, Math.min(1, fmDepthNow + aftertouchMods.fmDepth));
+    // Apply matrix modulation to FM depth and clamp to [0, 1]
+    fmDepthNow = Math.max(0, Math.min(1, fmDepthNow + matrixMods.osc1FM));
 
     // Calculate Osc2 first for FM modulation
     const osc2WaveformNow = params.osc2Waveform;
@@ -1577,12 +1913,12 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     const osc2FineNow = params.osc2Fine;
     const hardSyncNow = params.hardSync;
 
-    // Oscillator 2 frequency calculation with aftertouch pitch modulation
+    // Oscillator 2 frequency calculation with matrix pitch modulation
     const osc2Semi =
       voice.midi +
       osc2CoarseNow +
       osc2FineNow / 100.0 +
-      aftertouchMods.osc2Pitch * 12;
+      matrixMods.osc2Pitch * 12;
     const osc2Freq = this.midiToHz(osc2Semi);
     const osc2PhInc = osc2Freq / sr;
 
@@ -1614,8 +1950,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       coarseNow +
       fineNow / 100.0 +
       pitchBendNow +
-      aftertouchMods.osc1Pitch * 12 +
-      lfo1ToPitch; // Add LFO1 modulation to pitch
+      matrixMods.osc1Pitch * 12;
     const baseFreq = this.midiToHz(baseSemi);
 
     // Apply FM modulation: modulate frequency with Osc2 output
@@ -1653,26 +1988,31 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       params.pwmRate.length > 1
         ? params.pwmRate[sampleIndex]
         : params.pwmRate[0];
-    // Apply aftertouch modulation to PWM rate and clamp to [0.1, 10]
+    // Apply matrix modulation to PWM rate and clamp to [0.1, 10]
     pwmRateNow = Math.max(
       0.1,
-      Math.min(10, pwmRateNow + aftertouchMods.pwmRate * 5)
+      Math.min(10, pwmRateNow + matrixMods.osc1PWMRate * 5)
     );
 
     let pulseWidthNow =
       params.pulseWidth.length > 1
         ? params.pulseWidth[sampleIndex]
         : params.pulseWidth[0];
-    // Apply aftertouch modulation to pulse width and clamp to [0.01, 0.99]
+    // Apply matrix modulation to pulse width and clamp to [0.01, 0.99]
     pulseWidthNow = Math.max(
       0.01,
-      Math.min(0.99, pulseWidthNow + aftertouchMods.osc1PW * 0.4)
+      Math.min(0.99, pulseWidthNow + matrixMods.osc1PW * 0.4)
     );
 
-    const pwmDepthNow =
+    let pwmDepthNow =
       params.pwmDepth.length > 1
         ? params.pwmDepth[sampleIndex]
         : params.pwmDepth[0];
+    // Apply matrix modulation to PWM depth and clamp to [0, 1]
+    pwmDepthNow = Math.max(
+      0,
+      Math.min(1, pwmDepthNow + matrixMods.osc1PWMDepth)
+    );
 
     voice.osc1.pwmLfoPhase += pwmRateNow / sr;
     voice.osc1.pwmLfoPhase %= 1.0;
@@ -1691,8 +2031,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     // Sub oscillator
     let subVolNow =
       params.subVol.length > 1 ? params.subVol[sampleIndex] : params.subVol[0];
-    // Apply aftertouch modulation to sub volume and clamp to [0, 1]
-    subVolNow = Math.max(0, Math.min(1, subVolNow + aftertouchMods.sub1Volume));
+    // Apply matrix modulation to sub volume and clamp to [0, 1]
+    subVolNow = Math.max(0, Math.min(1, subVolNow + matrixMods.sub1Volume));
     let subOsc = 0.0;
     if (subVolNow > 0) {
       let subSquare = voice.subOsc1.phase < 0.5 ? 1.0 : -1.0;
@@ -1707,8 +2047,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     // Apply main oscillator volume and mix with sub oscillator
     let oscVolNow =
       params.oscVol.length > 1 ? params.oscVol[sampleIndex] : params.oscVol[0];
-    // Apply aftertouch modulation to oscillator volume and clamp to [0, 1]
-    oscVolNow = Math.max(0, Math.min(1, oscVolNow + aftertouchMods.osc1Volume));
+    // Apply matrix modulation to oscillator volume and clamp to [0, 1]
+    oscVolNow = Math.max(0, Math.min(1, oscVolNow + matrixMods.osc1Volume));
     let osc1Output = osc1Raw * oscVolNow + subOsc;
 
     // Apply Osc2 volume (osc2Raw already calculated above for FM)
@@ -1716,11 +2056,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       params.osc2Vol.length > 1
         ? params.osc2Vol[sampleIndex]
         : params.osc2Vol[0];
-    // Apply aftertouch modulation to osc2 volume and clamp to [0, 1]
-    osc2VolNow = Math.max(
-      0,
-      Math.min(1, osc2VolNow + aftertouchMods.osc2Volume)
-    );
+    // Apply matrix modulation to osc2 volume and clamp to [0, 1]
+    osc2VolNow = Math.max(0, Math.min(1, osc2VolNow + matrixMods.osc2Volume));
     let osc2Output = 0.0;
     if (osc2VolNow > 0) {
       osc2Output = osc2Raw * osc2VolNow * 1.5;
@@ -1731,11 +2068,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       params.sub2Vol.length > 1
         ? params.sub2Vol[sampleIndex]
         : params.sub2Vol[0];
-    // Apply aftertouch modulation to sub2 volume and clamp to [0, 1]
-    sub2VolNow = Math.max(
-      0,
-      Math.min(1, sub2VolNow + aftertouchMods.sub2Volume)
-    );
+    // Apply matrix modulation to sub2 volume and clamp to [0, 1]
+    sub2VolNow = Math.max(0, Math.min(1, sub2VolNow + matrixMods.sub2Volume));
 
     // Sub oscillator 2 (one octave down, same waveform as Osc2)
     let sub2Output = 0.0;
@@ -1754,11 +2088,8 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       params.ringVol.length > 1
         ? params.ringVol[sampleIndex]
         : params.ringVol[0];
-    // Apply aftertouch modulation to ring volume and clamp to [0, 1]
-    ringVolNow = Math.max(
-      0,
-      Math.min(1, ringVolNow + aftertouchMods.ringVolume)
-    );
+    // Apply matrix modulation to ring volume and clamp to [0, 1]
+    ringVolNow = Math.max(0, Math.min(1, ringVolNow + matrixMods.ringVolume));
     let ringOutput = 0.0;
     if (ringVolNow > 0) {
       ringOutput = osc1Raw * osc2Raw * ringVolNow;
@@ -1772,6 +2103,11 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       params.noiseVol.length > 1
         ? params.noiseVol[sampleIndex]
         : params.noiseVol[0];
+    // Apply matrix modulation to noise volume and clamp to [0, 1]
+    noiseVolNow = Math.max(
+      0,
+      Math.min(1, noiseVolNow + matrixMods.noiseVolume)
+    );
     if (noiseVolNow > 0) {
       const noiseSignal = this.generateNoise();
       // Add noise to oscillator mix
@@ -1799,10 +2135,10 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       params.hpfCutoff.length > 1
         ? params.hpfCutoff[sampleIndex]
         : params.hpfCutoff[0];
-    // Apply aftertouch modulation to HPF cutoff and clamp to [20, 20000]
+    // Apply matrix modulation to HPF cutoff and clamp to [20, 20000]
     hpfCutoffNow = Math.max(
       20,
-      Math.min(20000, hpfCutoffNow + aftertouchMods.hpCutoff * 5000)
+      Math.min(20000, hpfCutoffNow + matrixMods.f2Cutoff * 5000)
     );
 
     // Apply filter envelope modulation to HPF cutoff
@@ -1822,20 +2158,20 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       params.hpfResonance.length > 1
         ? params.hpfResonance[sampleIndex]
         : params.hpfResonance[0];
-    // Apply aftertouch modulation to HPF resonance and clamp to [0, 0.95]
+    // Apply matrix modulation to HPF resonance and clamp to [0, 0.95]
     hpfResonanceNow = Math.max(
       0,
-      Math.min(0.95, hpfResonanceNow + aftertouchMods.hpResonance * 0.5)
+      Math.min(0.95, hpfResonanceNow + matrixMods.f2Resonance * 0.5)
     );
 
     let lpfCutoffNow =
       params.filterCutoff.length > 1
         ? params.filterCutoff[sampleIndex]
         : params.filterCutoff[0];
-    // Apply aftertouch modulation to LPF cutoff and clamp to [20, 20000]
+    // Apply matrix modulation to LPF cutoff and clamp to [20, 20000]
     lpfCutoffNow = Math.max(
       20,
-      Math.min(20000, lpfCutoffNow + aftertouchMods.lpCutoff * 5000)
+      Math.min(20000, lpfCutoffNow + matrixMods.f1Cutoff * 5000)
     );
 
     // Apply filter envelope modulation to LPF cutoff
@@ -1851,21 +2187,14 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       );
     }
 
-    // TEST: Apply LFO2 modulation to LPF cutoff
-    // LFO2 output range: -depth to +depth (where depth is 0-1)
-    // Scale to ±3 octaves maximum (exponential scaling for natural filter sweep)
-    // When depth=100%, lfo2Output ranges from -1 to +1, giving ±3 octaves
-    const lfo2Multiplier = Math.pow(2, lfo2ToFilterCutoff * 3); // ±3 octaves
-    lpfCutoffNow = Math.max(20, Math.min(20000, lpfCutoffNow * lfo2Multiplier));
-
     let lpfResonanceNow =
       params.filterResonance.length > 1
         ? params.filterResonance[sampleIndex]
         : params.filterResonance[0];
-    // Apply aftertouch modulation to LPF resonance and clamp to [0, 0.95]
+    // Apply matrix modulation to LPF resonance and clamp to [0, 0.95]
     lpfResonanceNow = Math.max(
       0,
-      Math.min(0.95, lpfResonanceNow + aftertouchMods.lpResonance * 0.5)
+      Math.min(0.95, lpfResonanceNow + matrixMods.f1Resonance * 0.5)
     );
 
     // First apply 18dB HPF
@@ -1906,23 +2235,22 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       params.panRate.length > 1
         ? params.panRate[sampleIndex]
         : params.panRate[0];
-    // Apply aftertouch modulation to pan rate and clamp to [0.1, 10]
+    // Apply matrix modulation to pan rate and clamp to [0.1, 10]
     panRateNow = Math.max(
       0.1,
-      Math.min(10, panRateNow + aftertouchMods.panRate * 5)
+      Math.min(10, panRateNow + matrixMods.panRate * 5)
     );
 
     let panDepthNow =
       params.panDepth.length > 1
         ? params.panDepth[sampleIndex]
         : params.panDepth[0];
-    // Apply aftertouch modulation to pan depth and clamp to [0, 1]
-    panDepthNow = Math.max(
-      0,
-      Math.min(1, panDepthNow + aftertouchMods.panDepth)
-    );
-    const panPosNow =
+    // Apply matrix modulation to pan depth and clamp to [0, 1]
+    panDepthNow = Math.max(0, Math.min(1, panDepthNow + matrixMods.panDepth));
+    let panPosNow =
       params.panPos.length > 1 ? params.panPos[sampleIndex] : params.panPos[0];
+    // Apply matrix modulation to pan position and clamp to [-1, 1]
+    panPosNow = Math.max(-1, Math.min(1, panPosNow + matrixMods.panPosition));
     voice.panLfo.phase += panRateNow / sr;
     voice.panLfo.phase %= 1.0;
     const panMod = Math.sin(twoPi * voice.panLfo.phase) * panDepthNow;
@@ -1933,8 +2261,10 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
     const lg = Math.sqrt(0.5 * (1 - pan));
     const rg = Math.sqrt(0.5 * (1 + pan));
 
-    const masterNow =
+    let masterNow =
       params.master.length > 1 ? params.master[sampleIndex] : params.master[0];
+    // Apply matrix modulation to master volume and clamp to [0, 1]
+    masterNow = Math.max(0, Math.min(1, masterNow + matrixMods.masterVolume));
     // Mix between fixed velocity (1.0) and actual velocity based on velocityAmt
     const effectiveVelocity =
       1.0 - params.velocityAmt + voice.velocity * params.velocityAmt;
@@ -2003,6 +2333,7 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       coarse: parameters.oscillatorCoarseTune,
       fine: parameters.oscillatorFineTune,
       pitchBend: parameters.pitchBend,
+      modWheel: parameters.modWheel[0],
       oscVol: parameters.oscillatorVolume,
       pulseWidth: parameters.pulseWidth,
       pwmDepth: parameters.pulseWidthModulationDepth,
@@ -2036,14 +2367,43 @@ class PolyPWMSynthProcessor extends AudioWorkletProcessor {
       filterEnvR: parameters.filterEnvRelease[0],
       lpEnvAmount: parameters.lpEnvAmount[0],
       hpEnvAmount: parameters.hpEnvAmount[0],
-      aftertouchDest1: parameters.aftertouchDest1[0],
-      aftertouchAmount1: parameters.aftertouchAmount1[0],
-      aftertouchDest2: parameters.aftertouchDest2[0],
-      aftertouchAmount2: parameters.aftertouchAmount2[0],
-      aftertouchDest3: parameters.aftertouchDest3[0],
-      aftertouchAmount3: parameters.aftertouchAmount3[0],
-      aftertouchDest4: parameters.aftertouchDest4[0],
-      aftertouchAmount4: parameters.aftertouchAmount4[0],
+      // Modulation Matrix (12 slots)
+      matrixSource1: parameters.matrixSource1[0],
+      matrixDest1: parameters.matrixDest1[0],
+      matrixAmount1: parameters.matrixAmount1[0],
+      matrixSource2: parameters.matrixSource2[0],
+      matrixDest2: parameters.matrixDest2[0],
+      matrixAmount2: parameters.matrixAmount2[0],
+      matrixSource3: parameters.matrixSource3[0],
+      matrixDest3: parameters.matrixDest3[0],
+      matrixAmount3: parameters.matrixAmount3[0],
+      matrixSource4: parameters.matrixSource4[0],
+      matrixDest4: parameters.matrixDest4[0],
+      matrixAmount4: parameters.matrixAmount4[0],
+      matrixSource5: parameters.matrixSource5[0],
+      matrixDest5: parameters.matrixDest5[0],
+      matrixAmount5: parameters.matrixAmount5[0],
+      matrixSource6: parameters.matrixSource6[0],
+      matrixDest6: parameters.matrixDest6[0],
+      matrixAmount6: parameters.matrixAmount6[0],
+      matrixSource7: parameters.matrixSource7[0],
+      matrixDest7: parameters.matrixDest7[0],
+      matrixAmount7: parameters.matrixAmount7[0],
+      matrixSource8: parameters.matrixSource8[0],
+      matrixDest8: parameters.matrixDest8[0],
+      matrixAmount8: parameters.matrixAmount8[0],
+      matrixSource9: parameters.matrixSource9[0],
+      matrixDest9: parameters.matrixDest9[0],
+      matrixAmount9: parameters.matrixAmount9[0],
+      matrixSource10: parameters.matrixSource10[0],
+      matrixDest10: parameters.matrixDest10[0],
+      matrixAmount10: parameters.matrixAmount10[0],
+      matrixSource11: parameters.matrixSource11[0],
+      matrixDest11: parameters.matrixDest11[0],
+      matrixAmount11: parameters.matrixAmount11[0],
+      matrixSource12: parameters.matrixSource12[0],
+      matrixDest12: parameters.matrixDest12[0],
+      matrixAmount12: parameters.matrixAmount12[0],
       bpm: parameters.bpm[0],
       lfo1Rate: parameters.lfo1Rate,
       lfo1Depth: parameters.lfo1Depth,

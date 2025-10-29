@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>VortexPWM v1.7</title>
+    <title>VortexPWM v2.0</title>
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230e0f12' width='100' height='100'/><path d='M10 50 L30 20 L50 80 L70 35 L90 65' stroke='%236ea8fe' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>"
@@ -12,7 +12,7 @@
   </head>
   <body>
     <header class="split">
-      <h1>VortexPWM v1.7</h1>
+      <h1>VortexPWM v2.0</h1>
       <div class="bar">
         <button id="start">Start Audio</button>
         <span class="pill small">Stereo • 8-Voice Polyphonic</span>
@@ -828,118 +828,10 @@
         </fieldset>
 
         <fieldset>
-          <legend>Aftertouch Modulation</legend>
-          <!-- Slot 1 -->
-          <slider-control>
-            <label class="label" for="atDest1">Slot 1 Dest</label>
-            <input
-              class="slider"
-              id="atDest1"
-              type="range"
-              min="0"
-              max="17"
-              step="1"
-              value="0"
-            />
-            <span class="value" id="atDest1Val">None</span>
-          </slider-control>
-          <slider-control>
-            <label class="label" for="atAmount1">Slot 1 Amount</label>
-            <input
-              class="slider"
-              id="atAmount1"
-              type="range"
-              min="-1"
-              max="1"
-              step="0.01"
-              value="0"
-            />
-            <span class="value" id="atAmount1Val">0.00</span>
-          </slider-control>
-
-          <!-- Slot 2 -->
-          <slider-control>
-            <label class="label" for="atDest2">Slot 2 Dest</label>
-            <input
-              class="slider"
-              id="atDest2"
-              type="range"
-              min="0"
-              max="17"
-              step="1"
-              value="0"
-            />
-            <span class="value" id="atDest2Val">None</span>
-          </slider-control>
-          <slider-control>
-            <label class="label" for="atAmount2">Slot 2 Amount</label>
-            <input
-              class="slider"
-              id="atAmount2"
-              type="range"
-              min="-1"
-              max="1"
-              step="0.01"
-              value="0"
-            />
-            <span class="value" id="atAmount2Val">0.00</span>
-          </slider-control>
-
-          <!-- Slot 3 -->
-          <slider-control>
-            <label class="label" for="atDest3">Slot 3 Dest</label>
-            <input
-              class="slider"
-              id="atDest3"
-              type="range"
-              min="0"
-              max="17"
-              step="1"
-              value="0"
-            />
-            <span class="value" id="atDest3Val">None</span>
-          </slider-control>
-          <slider-control>
-            <label class="label" for="atAmount3">Slot 3 Amount</label>
-            <input
-              class="slider"
-              id="atAmount3"
-              type="range"
-              min="-1"
-              max="1"
-              step="0.01"
-              value="0"
-            />
-            <span class="value" id="atAmount3Val">0.00</span>
-          </slider-control>
-
-          <!-- Slot 4 -->
-          <slider-control>
-            <label class="label" for="atDest4">Slot 4 Dest</label>
-            <input
-              class="slider"
-              id="atDest4"
-              type="range"
-              min="0"
-              max="17"
-              step="1"
-              value="0"
-            />
-            <span class="value" id="atDest4Val">None</span>
-          </slider-control>
-          <slider-control>
-            <label class="label" for="atAmount4">Slot 4 Amount</label>
-            <input
-              class="slider"
-              id="atAmount4"
-              type="range"
-              min="-1"
-              max="1"
-              step="0.01"
-              value="0"
-            />
-            <span class="value" id="atAmount4Val">0.00</span>
-          </slider-control>
+          <legend>Modulation Matrix (12 Slots)</legend>
+          <div id="modulationMatrix" class="matrix-grid">
+            <!-- Matrix slots will be generated dynamically by JavaScript -->
+          </div>
         </fieldset>
       </section>
 

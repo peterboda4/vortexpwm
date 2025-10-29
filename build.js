@@ -526,11 +526,13 @@ ${(() => {
 
   // Generate assignments with null-safety for failed imports
   const assignments = classNames
-    .map((cn, i) => `  if (results[${i}].status === 'fulfilled') {
+    .map(
+      (cn, i) => `  if (results[${i}].status === 'fulfilled') {
     window.${cn.class} = results[${i}].value.${cn.class};
   } else {
     console.warn('[Build] Failed to load effect "${cn.id}":', results[${i}].reason);
-  }`)
+  }`
+    )
     .join('\n');
 
   return `Promise.allSettled([
